@@ -159,10 +159,16 @@ td.num{white-space:nowrap}
         <label class="f">คำนวณอายุ ณ วันที่<input type="date" id="refDate"></label>
         <p class="note">ราคาประเมินใช้ค่ามัธยฐานของเครื่องยี่ห้อและรุ่นเดียวกันก่อน ถ้าไม่มีจึงใช้เครื่องชนิดเดียวกันทั้งหมด ค่ามัธยฐานไม่ถูกดึงสูงหรือต่ำเกินจริงจากเครื่องราคาผิดปกติ ปรับราคาเองได้ในตารางราคาอ้างอิงด้านล่าง</p>
       </div>
+      <div class="rules">
       <label class="f">รายการเครื่องมือจำเป็น · หนึ่งชนิดต่อบรรทัด คั่นชื่อเรียกอื่นด้วยจุลภาค · ใส่ - หน้าคำที่ต้องการยกเว้น เช่น -มือบีบ
         <textarea id="essList" spellcheck="false"></textarea>
         <span><button type="button" id="essReset">คืนค่ารายการเริ่มต้น</button></span>
       </label>
+      <label class="f">ไม่นำมาคัดกรอง · ชื่อครุภัณฑ์ที่ขึ้นต้นด้วยคำเหล่านี้ คั่นด้วยจุลภาค · ใส่ - หน้าคำที่ต้องการยกเว้นกลับเข้ามา
+        <textarea id="skipList" spellcheck="false" style="min-height:120px"></textarea>
+        <span><button type="button" id="skipReset">คืนค่ารายการเริ่มต้น</button></span>
+      </label>
+      </div>
     </div>
   </section>
 
@@ -233,15 +239,20 @@ const DEFAULT_ESS = [
  'Defibrillator, เครื่องกระตุกหัวใจ, เครื่องกระตุ้นหัวใจจากภายนอก, AED',
  'Ventilator, เครื่องช่วยหายใจ, -มือบีบ, -Ambu, -Respirometer',
  'Patient monitor, เครื่องติดตามสัญญาณชีพ, เครื่องติดตามการทำงานของหัวใจและสัญญาณชีพ, เครื่องวัดสัญญาณชีพ',
- 'Suction, เครื่องดูดเสมหะ, เครื่องดูดของเหลว',
- 'Pulse oximeter, เครื่องวัดออกซิเจนในเลือด, ความอิ่มตัวของออกซิเจนในเลือด',
  'EKG, ECG, เครื่องตรวจคลื่นไฟฟ้าหัวใจ',
  'Infant warmer, เครื่องให้ความอบอุ่นทารก, radiant warmer',
  'Incubator, ตู้อบเด็ก',
  'Phototherapy, เครื่องส่องไฟรักษาทารกตัวเหลือง',
  'High flow nasal cannula, HFNC, เครื่องให้ออกซิเจนอัตราไหลสูง, ออกซิเจนด้วยอัตราการไหลสูง, Oxygen Delivery Units, High-Flow'
 ].join('\n');
-const STORE='mdscreen.v2';
+const DEFAULT_SKIP = [
+ 'ตู้ข้างเตียง',
+ 'ตู้เก็บ, -เกล็ดเลือด',
+ 'รถเข็น, รถทำแผล, รถฉีดยา, รถฉุกเฉิน',
+ 'คลิบเด็กอ่อน, คลิกเด็กอ่อน, คลิปเด็กอ่อน',
+ 'เก้าอี้, Stair Chair'
+].join('\n');
+const STORE='mdscreen.v3';
 const state = {aoa:null, wb:null, fileLabel:'', isSample:true, headerRow:0, headers:[], map:{}, overrides:{}, items:[], flagged:[], groups:[]};
 
 /* ---------- helpers ---------- */
@@ -255,7 +266,7 @@ const median = arr => { const a=[...arr].sort((x,y)=>x-y), m=a.length>>1; return
 const beDate = d => d ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()+543}` : '';
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,3200); }
 function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
-function save(){ try{ localStorage.setItem(STORE, JSON.stringify({ess:$('#essList').value, thPrice:$('#thPrice').value, thPriceAge:$('#thPriceAge').value, thOld:$('#thOld').value, thOldPrice:$('#thOldPrice').value, exStatus:$('#exStatus').value, thEssAge:$('#thEssAge').value})); }catch(e){} }
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify({ess:$('#essList').value, thPrice:$('#thPrice').value, thPriceAge:$('#thPriceAge').value, thOld:$('#thOld').value, thOldPrice:$('#thOldPrice').value, exStatus:$('#exStatus').value, skip:$('#skipList').value, thEssAge:$('#thEssAge').value})); }catch(e){} }
 
 const TH_MONTHS = [['มกราคม','มค'],['กุมภาพันธ์','กพ'],['มีนาคม','มีค'],['เมษายน','เมย'],['พฤษภาคม','พค'],['มิถุนายน','มิย'],['กรกฎาคม','กค'],['สิงหาคม','สค'],['กันยายน','กย'],['ตุลาคม','ตค'],['พฤศจิกายน','พย'],['ธันวาคม','ธค']];
 function fixYear(y){ if(y<100) y+=2500; if(y>2400) y-=543; return y; }
@@ -371,7 +382,8 @@ function groupName(name){
 function run(){
   if(!state.aoa) return;
   const M=state.map, g=(row,k)=>{ const v=M[k]>=0?row[M[k]]:''; return typeof v==='string'?blank(v):v; };
-  const exS=new Set($('#exStatus').value.split(',').map(norm).filter(Boolean)); let excluded=0;
+  const exS=new Set($('#exStatus').value.split(',').map(norm).filter(Boolean)); let excluded=0, skipped=0;
+  const skip=$('#skipList').value.split('\n').map(l=>l.split(',').map(x=>x.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({pre:a.filter(x=>!x.startsWith('-')).map(norm).filter(Boolean), not:a.filter(x=>x.startsWith('-')).map(x=>norm(x.slice(1))).filter(Boolean)}));
   const ref=$('#refDate').value?new Date($('#refDate').value+'T00:00:00'):new Date();
   const thP=+$('#thPrice').value||0, thPA=+$('#thPriceAge').value||0, thO=+$('#thOld').value||0, thOP=+$('#thOldPrice').value||0, thE=+$('#thEssAge').value||0;
   const ess=essentials();
@@ -381,6 +393,7 @@ function run(){
     if(!name&&!code) return;
     const status=String(g(row,'status')||'').trim();
     if(status&&exS.has(norm(status))){ excluded++; return; }
+    const nn=norm(name); if(skip.some(x=>x.pre.some(p=>nn.startsWith(p))&&!x.not.some(p=>nn.includes(p)))){ skipped++; return; }
     const type=String(g(row,'type')||'').trim();
     const hay=norm(name+' '+type);
     const e=ess.find(x=>x.syn.some(s=>s&&hay.includes(s))&&!x.not.some(s=>hay.includes(s)));
@@ -417,7 +430,7 @@ function run(){
       if(it.used==null&&a>thPA&&!it.reasons.length) it.reasons.push('noprice');
     } else if((it.used!=null&&it.used>=thP)||it.ess){ it.reasons.push(it.badDate?'baddate':'noage'); }
   });
-  state.items=items; state.excluded=excluded;
+  state.items=items; state.excluded=excluded; state.skipped=skipped;
   state.flagged=items.filter(i=>i.reasons.length).sort((x,y)=>x.dept.localeCompare(y.dept,'th')||(y.age||0)-(x.age||0));
   state.groups=Object.keys(zeroG).map(k=>{const p=byG[k]||[];return {k,zero:zeroG[k],n:p.length,min:p.length?Math.min(...p):null,med:median(p),max:p.length?Math.max(...p):null};}).sort((a,b)=>b.zero-a.zero);
   state.crit={thP,thPA,thO,thOP,thE,ref};
@@ -434,7 +447,7 @@ function render(){
   const cnt=k=>F.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length;
   const depts=[...new Set(F.map(i=>i.dept))].sort((a,b)=>a.localeCompare(b,'th'));
   $('#kpis').innerHTML=[
-    ['v',all.length,'ครุภัณฑ์ที่นำมาคัดกรอง'+(state.excluded?` (ไม่รวมสถานะจำหน่าย ${state.excluded})`:'')],['hl',F.length,'เข้าเกณฑ์ประเมิน'],['',depts.length,'หน่วยงานที่ต้องส่ง'],
+    ['v',all.length,'ครุภัณฑ์ที่นำมาคัดกรอง'+[state.excluded?`ไม่รวมสถานะจำหน่าย ${state.excluded}`:'',state.skipped?`ไม่รวมตามรายการยกเว้น ${state.skipped}`:''].filter(Boolean).map(x=>` · ${x}`).join('')],['hl',F.length,'เข้าเกณฑ์ประเมิน'],['',depts.length,'หน่วยงานที่ต้องส่ง'],
     ['',cnt('price'),'A ราคาจริง ≥ เกณฑ์'],['',cnt('est'),'A* ราคาประเมิน ≥ เกณฑ์'],['',cnt('old'),'B อายุ ≥ '+state.crit.thO+' ปี'],['',cnt('ess'),'C เครื่องมือจำเป็น'],['',cnt('warn'),'ข้อมูลไม่ครบ ต้องตรวจสอบ']
   ].map(([c,v,l])=>`<div class="kpi ${c}"><span class="v">${v.toLocaleString('th-TH')}</span><span class="l">${l}</span></div>`).join('');
   $('#refNote').textContent=`อายุคำนวณ ณ ${beDate(state.crit.ref)}`;
@@ -563,6 +576,8 @@ $('#headerRow').addEventListener('change',e=>{ if(!state.aoa) return; state.head
 $('#mapGrid').addEventListener('change',e=>{ const s=e.target.closest('select[data-k]'); if(!s) return; state.map[s.dataset.k]=+s.value; run(); });
 ['#thPrice','#thPriceAge','#thOld','#thOldPrice','#thEssAge','#refDate','#exStatus'].forEach(s=>$(s).addEventListener('input',()=>{save();run();}));
 $('#essReset').addEventListener('click',()=>{ $('#essList').value=DEFAULT_ESS; save(); run(); toast('คืนค่ารายการเครื่องมือจำเป็นแล้ว'); });
+$('#skipReset').addEventListener('click',()=>{ $('#skipList').value=DEFAULT_SKIP; save(); run(); toast('คืนค่ารายการยกเว้นแล้ว'); });
+$('#skipList').addEventListener('input',()=>{clearTimeout(essT);essT=setTimeout(()=>{save();run();},350);});
 let essT; $('#essList').addEventListener('input',()=>{clearTimeout(essT);essT=setTimeout(()=>{save();run();},350);});
 ['#fDept','#fReason'].forEach(s=>$(s).addEventListener('change',renderTable));
 $('#fText').addEventListener('input',renderTable);
@@ -571,6 +586,7 @@ $('#refTable').addEventListener('change',e=>{ const inp=e.target.closest('input[
 /* ---------- init ---------- */
 const saved=load();
 $('#essList').value=saved.ess||DEFAULT_ESS;
+$('#skipList').value=saved.skip!=null?saved.skip:DEFAULT_SKIP;
 ['thPrice','thPriceAge','thOld','thOldPrice','thEssAge','exStatus'].forEach(k=>{ if(saved[k]) $('#'+k).value=saved[k]; });
 const t=new Date(); $('#refDate').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
 if(typeof XLSX==='undefined'){ $('#loadErr').textContent='โหลดไลบรารีอ่าน Excel ไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วโหลดหน้าใหม่'; $('#loadErr').hidden=false; return; }
