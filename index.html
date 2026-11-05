@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>คัดกรองเครื่องมือแพทย์เสื่อมสภาพ</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: a single working column like an inventory worksheet — numbered steps on top, the screening register below. */
+:root{
+  --bg:#f5f7f8; --surface:#ffffff; --sunk:#eaeff1; --line:#d5dde0; --fg:#14262c; --muted:#5a6f76;
+  --accent:#0d6b73; --accent-soft:#d9eef0; --on-accent:#ffffff;
+  --crit:#b3261e; --crit-soft:#fbe4e2; --warn:#8a5a00; --warn-soft:#fbefd4; --info:#5b3fa6; --info-soft:#ece6fa; --ok:#1e6b3a; --ok-soft:#dff1e5;
+  --f-display:"Bai Jamjuree","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1719; --surface:#162226; --sunk:#1c2b30; --line:#2b3d43; --fg:#e3eced; --muted:#93a7ad;
+  --accent:#4fb8c0; --accent-soft:#173a3e; --on-accent:#06191b;
+  --crit:#f2867e; --crit-soft:#3d1c1a; --warn:#e8b65a; --warn-soft:#3a2c10; --info:#b7a2f2; --info-soft:#2a2342; --ok:#7ccf98; --ok-soft:#173225;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1719; --surface:#162226; --sunk:#1c2b30; --line:#2b3d43; --fg:#e3eced; --muted:#93a7ad;
+  --accent:#4fb8c0; --accent-soft:#173a3e; --on-accent:#06191b;
+  --crit:#f2867e; --crit-soft:#3d1c1a; --warn:#e8b65a; --warn-soft:#3a2c10; --info:#b7a2f2; --info-soft:#2a2342; --ok:#7ccf98; --ok-soft:#173225;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.25}
+h1{font-size:clamp(1.55rem,3.2vw,2.1rem);font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.2rem;font-weight:600}
+h3{font-size:1rem;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--fg);padding-bottom:14px}
+header.top .tag{font-family:var(--f-mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+header.top p{max-width:62ch}
+.privacy{font-size:.82rem;color:var(--muted);display:flex;gap:8px;align-items:center}
+.privacy b{color:var(--ok)}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.step-h{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.step-n{font-family:var(--f-mono);font-size:.8rem;color:var(--on-accent);background:var(--accent);border-radius:4px;padding:1px 7px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:20px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;background:var(--sunk);transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.filemeta{display:flex;flex-direction:column;gap:2px;min-width:0}
+.filemeta strong{overflow-wrap:anywhere}
+.badge{display:inline-block;font-size:.75rem;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--warn-soft);color:var(--warn);vertical-align:middle}
+button,.btn{font:inherit;font-weight:500;font-size:.9rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:7px 14px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+button:hover,.btn:hover{border-color:var(--accent);color:var(--accent)}
+button.primary,.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+button.primary:hover,.btn.primary:hover{filter:brightness(1.08);color:var(--on-accent)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:.84rem;color:var(--muted);min-width:0}
+label.f .req{color:var(--crit)}
+select,input[type=number],input[type=text],input[type=date],textarea{font:inherit;font-size:.92rem;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 9px;width:100%;min-width:0}
+textarea{font-family:var(--f-mono);font-size:.82rem;line-height:1.55;resize:vertical;min-height:190px}
+.mapgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.rules{display:flex;flex-direction:column;gap:10px}
+.rule{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--sunk)}
+.rule .code{font-family:var(--f-mono);font-size:.75rem;font-weight:500;border-radius:4px;padding:1px 6px}
+.rule .txt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.9rem}
+.rule input[type=number]{width:auto;max-width:120px;padding:3px 7px}
+.c-old{background:var(--crit-soft);color:var(--crit)}
+.c-price{background:var(--accent-soft);color:var(--accent)}
+.c-est{background:var(--accent-soft);color:var(--accent);outline:1px dashed var(--accent);outline-offset:-1px}
+.c-ess{background:var(--info-soft);color:var(--info)}
+.c-warn{background:var(--warn-soft);color:var(--warn)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.kpi{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-family:var(--f-mono);font-size:1.5rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi .l{font-size:.8rem;color:var(--muted)}
+.kpi.hl .v{color:var(--accent)}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:6px;max-width:100%}
+.tablebox.tall{max-height:560px;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:var(--sunk);font-weight:600;font-size:.78rem;color:var(--muted);position:sticky;top:0;z-index:1;white-space:nowrap}
+td.r,th.r{text-align:right}
+tbody tr:hover td{background:var(--sunk)}
+.pill{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:999px;margin:1px 3px 1px 0;white-space:nowrap}
+.est{font-size:.74rem;color:var(--accent)}
+.zero{color:var(--muted)}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between}
+.toolbar .filters{display:flex;flex-wrap:wrap;gap:10px;flex:1 1 420px;min-width:0}
+.toolbar .filters label{flex:1 1 180px}
+.note{font-size:.84rem;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 12px;max-width:80ch}
+.override{width:130px;padding:3px 7px;font-family:var(--f-mono);font-size:.84rem}
+details summary{cursor:pointer;font-weight:500}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:6px;font-size:.9rem;z-index:20;max-width:calc(100% - 32px)}
+.err{color:var(--crit);font-size:.88rem}
+@media (max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+td.num{white-space:nowrap}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+      <span class="tag">Medical Equipment · Condition Screening</span>
+      <h1>คัดกรองเครื่องมือแพทย์เพื่อประเมินการเสื่อมสภาพ</h1>
+      <p class="muted">นำเข้าทะเบียนครุภัณฑ์จาก Excel ระบบจะคัดเฉพาะรายการที่เข้าเกณฑ์ ประเมินราคาให้เครื่องที่ราคาเป็น 0 บาท (เช่น ได้จากเงินบริจาค) แล้วส่งออกเป็นไฟล์แยกหน่วยงานให้ลงความเห็น</p>
+    </div>
+    <p class="privacy"><b>●</b> ไฟล์ประมวลผลในเบราว์เซอร์นี้เท่านั้น ไม่ถูกส่งออกไปที่ใด</p>
+  </header>
+
+  <!-- Step 1 -->
+  <section class="step" aria-labelledby="s1">
+    <div class="step-h"><span class="step-n">1</span><h2 id="s1">นำเข้าไฟล์ทะเบียนครุภัณฑ์</h2></div>
+    <div class="drop" id="drop">
+      <div class="filemeta">
+        <strong id="fileName">ข้อมูลตัวอย่าง</strong>
+        <span class="muted small" id="fileInfo"></span>
+      </div>
+      <div class="btnrow">
+        <label class="btn primary" for="file">เลือกไฟล์ Excel / CSV</label>
+        <input type="file" id="file" accept=".xlsx,.xls,.xlsm,.csv">
+        <button id="btnSample" type="button">โหลดข้อมูลตัวอย่าง</button>
+      </div>
+    </div>
+    <div class="grid2">
+      <label class="f">ชีตที่ใช้<select id="sheetSel"></select></label>
+      <label class="f">แถวหัวตาราง (ตรวจหาอัตโนมัติ)<input type="number" id="headerRow" min="1" value="1"></label>
+    </div>
+    <p class="err" id="loadErr" hidden></p>
+  </section>
+
+  <!-- Step 2 -->
+  <section class="step" aria-labelledby="s2">
+    <div class="step-h"><span class="step-n">2</span><h2 id="s2">จับคู่คอลัมน์</h2><span class="muted small">ระบบเดาจากชื่อหัวคอลัมน์ ตรวจทานและแก้ได้</span></div>
+    <div class="mapgrid" id="mapGrid"></div>
+  </section>
+
+  <!-- Step 3 -->
+  <section class="step" aria-labelledby="s3">
+    <div class="step-h"><span class="step-n">3</span><h2 id="s3">เกณฑ์การคัดกรอง</h2></div>
+    <div class="grid2">
+      <div class="rules">
+        <div class="rule"><span class="code c-price">A</span><div class="txt">ราคา ≥ <input type="number" id="thPrice" value="100000" step="1000"> บาท และอายุมากกว่า <input type="number" id="thPriceAge" value="5" step="0.5"> ปี</div></div>
+        <div class="rule"><span class="code c-old">B</span><div class="txt">ราคา ≥ <input type="number" id="thOldPrice" value="100000" step="1000"> บาท และอายุตั้งแต่ <input type="number" id="thOld" value="10" step="0.5"> ปีขึ้นไป</div></div>
+        <div class="rule"><span class="code c-ess">C</span><div class="txt">เครื่องมือจำเป็นตามรายการด้านขวา อายุมากกว่า <input type="number" id="thEssAge" value="5" step="0.5"> ปี (ทุกราคา)</div></div>
+        <div class="rule"><span class="code c-est">A*</span><div class="txt">ราคา 0 บาท ใช้ราคากลางของเครื่องชนิดเดียวกันที่มีราคาในไฟล์แทน แล้วเทียบกับเกณฑ์ A</div></div>
+        <label class="f">คำนวณอายุ ณ วันที่<input type="date" id="refDate"></label>
+        <p class="note">ราคาประเมินใช้ค่ามัธยฐานของเครื่องยี่ห้อและรุ่นเดียวกันก่อน ถ้าไม่มีจึงใช้เครื่องชนิดเดียวกันทั้งหมด ค่ามัธยฐานไม่ถูกดึงสูงหรือต่ำเกินจริงจากเครื่องราคาผิดปกติ ปรับราคาเองได้ในตารางราคาอ้างอิงด้านล่าง</p>
+      </div>
+      <label class="f">รายการเครื่องมือจำเป็น · หนึ่งชนิดต่อบรรทัด คั่นชื่อเรียกอื่นด้วยจุลภาค (ชื่อแรกใช้เป็นชื่อกลุ่ม)
+        <textarea id="essList" spellcheck="false"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section class="step" aria-labelledby="s4">
+    <div class="step-h"><span class="step-n">4</span><h2 id="s4">ผลการคัดกรอง</h2><span class="muted small" id="refNote"></span></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="toolbar">
+      <div class="filters">
+        <label class="f">หน่วยงาน<select id="fDept"></select></label>
+        <label class="f">เหตุผล<select id="fReason">
+          <option value="">ทุกเหตุผล</option>
+          <option value="price">A ราคา ≥ เกณฑ์ (ราคาจริง)</option>
+          <option value="est">A* ราคาประเมิน ≥ เกณฑ์</option>
+          <option value="old">B อายุ ≥ เกณฑ์</option>
+          <option value="ess">C เครื่องมือจำเป็น</option>
+          <option value="warn">ข้อมูลไม่ครบ ต้องตรวจสอบ</option>
+        </select></label>
+        <label class="f">ค้นหา<input type="text" id="fText" placeholder="ชื่อ เลขครุภัณฑ์ ยี่ห้อ"></label>
+      </div>
+      <div class="btnrow">
+        <button class="primary" id="exAll" type="button">ส่งออก Excel แยกชีตตามหน่วยงาน</button>
+        <button id="exZip" type="button">ส่งออก ZIP ไฟล์ละหน่วยงาน</button>
+      </div>
+    </div>
+
+    <div class="tablebox tall"><table id="resTable"><thead><tr>
+      <th>หน่วยงาน</th><th>เลขครุภัณฑ์</th><th>ชื่อครุภัณฑ์</th><th>ยี่ห้อ / รุ่น</th><th>ได้มา</th><th class="r">อายุ (ปี)</th><th class="r">ราคาในทะเบียน</th><th class="r">ราคาที่ใช้ประเมิน</th><th>เข้าเกณฑ์</th>
+    </tr></thead><tbody></tbody></table></div>
+    <p class="muted small" id="resCount"></p>
+
+    <h3>สรุปตามหน่วยงาน</h3>
+    <div class="tablebox"><table id="deptTable"><thead><tr>
+      <th>หน่วยงาน</th><th class="r">ครุภัณฑ์ทั้งหมด</th><th class="r">เข้าเกณฑ์</th><th class="r">A</th><th class="r">A*</th><th class="r">B</th><th class="r">C</th><th class="r">ต้องตรวจสอบ</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3>ราคาอ้างอิงสำหรับเครื่องราคา 0 บาท</h3>
+    <p class="muted small">ชนิดที่มีเครื่องราคา 0 บาท พร้อมราคากลางจากเครื่องชนิดเดียวกันในไฟล์ กรอกช่อง “กำหนดเอง” เพื่อใช้ราคาที่ทราบ เช่น ราคากลางของกรมบัญชีกลาง</p>
+    <div class="tablebox"><table id="refTable"><thead><tr>
+      <th>ชนิดเครื่องมือ</th><th class="r">เครื่องราคา 0</th><th class="r">เครื่องที่มีราคา</th><th class="r">ต่ำสุด</th><th class="r">มัธยฐาน</th><th class="r">สูงสุด</th><th>กำหนดเอง (บาท)</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const FIELDS = [
+  {k:'code',  l:'เลขครุภัณฑ์', a:['เลขครุภัณฑ์','รหัสครุภัณฑ์','หมายเลขครุภัณฑ์','เลขที่ครุภัณฑ์','asset no','asset','รหัส','code']},
+  {k:'serial',l:'Serial number', a:['serial','s/n','หมายเลขเครื่อง','sn']},
+  {k:'model', l:'รุ่น', a:['รุ่น','model']},
+  {k:'brand', l:'ยี่ห้อ', a:['ยี่ห้อ','brand','ผู้ผลิต','manufacturer']},
+  {k:'price', l:'ราคา', req:true, a:['ราคาทุน','ราคาต่อหน่วย','ราคา','มูลค่า','price','cost']},
+  {k:'date',  l:'วันที่ / ปีที่ได้มา', req:true, a:['วันที่ได้มา','วันที่รับ','วันที่ซื้อ','ปีที่ได้มา','ปีที่ซื้อ','ปีงบ','วันที่','date','year']},
+  {k:'dept',  l:'หน่วยงาน', req:true, a:['หน่วยงาน','แผนก','ฝ่าย','ward','department','ตึก','สถานที่ตั้ง','ที่ตั้ง','location']},
+  {k:'source',l:'แหล่งเงิน / วิธีได้มา', a:['แหล่งเงิน','วิธีได้มา','ที่มา','งบ','source','fund']},
+  {k:'type',  l:'ชนิด / ประเภท', a:['ชนิด','ประเภท','กลุ่ม','type','category']},
+  {k:'name',  l:'ชื่อครุภัณฑ์', req:true, a:['ชื่อครุภัณฑ์','ชื่อเครื่องมือ','ชื่อ','รายการ','name','description','รายละเอียด']}
+];
+const DEFAULT_ESS = [
+ 'Infusion pump, เครื่องควบคุมการให้สารละลาย, เครื่องให้สารละลาย, เครื่องควบคุมการไหลของสารละลาย',
+ 'Syringe pump, เครื่องควบคุมการให้ยาแบบกระบอกฉีด, เครื่องฉีดยาอัตโนมัติ',
+ 'Defibrillator, เครื่องกระตุกหัวใจ, AED',
+ 'Ventilator, เครื่องช่วยหายใจ',
+ 'Patient monitor, เครื่องติดตามสัญญาณชีพ, เครื่องวัดสัญญาณชีพ, monitor',
+ 'Suction, เครื่องดูดเสมหะ, เครื่องดูดของเหลว',
+ 'Pulse oximeter, เครื่องวัดออกซิเจนในเลือด',
+ 'EKG, ECG, เครื่องตรวจคลื่นไฟฟ้าหัวใจ',
+ 'Infant warmer, เครื่องให้ความอบอุ่นทารก, radiant warmer',
+ 'Incubator, ตู้อบเด็ก',
+ 'Phototherapy, เครื่องส่องไฟรักษาทารกตัวเหลือง',
+ 'High flow nasal cannula, HFNC, เครื่องให้ออกซิเจนอัตราไหลสูง'
+].join('\n');
+const STORE='mdscreen.v1';
+const state = {aoa:null, wb:null, fileLabel:'', isSample:true, headerRow:0, headers:[], map:{}, overrides:{}, items:[], flagged:[], groups:[]};
+
+/* ---------- helpers ---------- */
+const thaiDigits = s => String(s).replace(/[๐-๙]/g, d => '๐๑๒๓๔๕๖๗๘๙'.indexOf(d));
+const norm = s => thaiDigits(s==null?'':s).toLowerCase().replace(/[\s_\-\.:()\[\]\/]+/g,' ').trim();
+const fmt = n => n==null||isNaN(n) ? '' : Math.round(n).toLocaleString('th-TH');
+const fmtAge = a => a==null ? '' : a.toFixed(1);
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const median = arr => { const a=[...arr].sort((x,y)=>x-y), m=a.length>>1; return a.length? (a.length%2?a[m]:(a[m-1]+a[m])/2) : null; };
+const beDate = d => d ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()+543}` : '';
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,3200); }
+function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify({ess:$('#essList').value, thPrice:$('#thPrice').value, thPriceAge:$('#thPriceAge').value, thOld:$('#thOld').value, thOldPrice:$('#thOldPrice').value, thEssAge:$('#thEssAge').value})); }catch(e){} }
+
+const TH_MONTHS = [['มกราคม','มค'],['กุมภาพันธ์','กพ'],['มีนาคม','มีค'],['เมษายน','เมย'],['พฤษภาคม','พค'],['มิถุนายน','มิย'],['กรกฎาคม','กค'],['สิงหาคม','สค'],['กันยายน','กย'],['ตุลาคม','ตค'],['พฤศจิกายน','พย'],['ธันวาคม','ธค']];
+function fixYear(y){ if(y<100) y+=2500; if(y>2400) y-=543; return y; }
+function mk(y,m,d){ y=fixYear(y); if(y<1950||y>2100||m<0||m>11||d<1||d>31) return null; return new Date(y,m,d); }
+function parseDate(v){
+  if(v==null||v==='') return null;
+  if(v instanceof Date){ if(isNaN(v)) return null; return mk(v.getFullYear(), v.getMonth(), v.getDate()); }
+  if(typeof v==='number'){
+    if(v>=1950&&v<=2100 || v>=2490&&v<=2700) return mk(v,0,1);
+    if(v>1000&&v<120000){ const d=new Date(Math.round((v-25569)*864e5)); return mk(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+    return null;
+  }
+  let s=thaiDigits(v).trim(); let m;
+  if(/^\d{4}$/.test(s)) return parseDate(+s);
+  if(m=s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/)) return mk(+m[1],+m[2]-1,+m[3]);
+  if(m=s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/)) return mk(+m[3],+m[2]-1,+m[1]);
+  if(m=s.match(/(\d{1,2})?\s*([ก-ฮะ-์\.]+)\s*(\d{2,4})/)){
+    const w=m[2].replace(/\./g,''); const i=TH_MONTHS.findIndex(([f,a])=>f.startsWith(w)||w===a||w.startsWith(f));
+    if(i>=0) return mk(+m[3], i, m[1]?+m[1]:1);
+  }
+  if(/^\d+(\.\d+)?$/.test(s)) return parseDate(+s);
+  const d=new Date(s); return isNaN(d)?null:mk(d.getFullYear(),d.getMonth(),d.getDate());
+}
+function parsePrice(v){
+  if(typeof v==='number') return v;
+  if(v==null) return null;
+  const s=thaiDigits(v).replace(/[^\d.\-]/g,''); if(s==='') return null;
+  const n=parseFloat(s); return isNaN(n)?null:n;
+}
+
+/* ---------- sample data (fictional) ---------- */
+function makeSample(){
+  const D=[['อายุรกรรมชาย'],['อายุรกรรมหญิง'],['ศัลยกรรม'],['หอผู้ป่วยหนัก (ICU)'],['ห้องอุบัติเหตุฉุกเฉิน'],['ห้องผ่าตัด'],['ห้องคลอด'],['กุมารเวชกรรม']].map(x=>x[0]);
+  const T=[ // name, brand, model, price
+    ['เครื่องควบคุมการให้สารละลาย (Infusion pump)','Terumo','TE-171',48000],
+    ['เครื่องควบคุมการให้สารละลาย (Infusion pump)','B.Braun','Infusomat Space',62000],
+    ['เครื่องควบคุมการให้ยาแบบกระบอกฉีด (Syringe pump)','Terumo','TE-331',55000],
+    ['เครื่องกระตุกหัวใจไฟฟ้า (Defibrillator)','Nihon Kohden','TEC-5600',385000],
+    ['เครื่องช่วยหายใจ (Ventilator)','Hamilton','C3',1150000],
+    ['เครื่องช่วยหายใจ (Ventilator)','Bird','VELA',890000],
+    ['เครื่องติดตามสัญญาณชีพ (Patient monitor)','Mindray','iMEC 10',145000],
+    ['เครื่องติดตามสัญญาณชีพ (Patient monitor)','Philips','IntelliVue MX450',210000],
+    ['เครื่องดูดเสมหะ (Suction)','Yuwell','7A-23D',18500],
+    ['เครื่องตรวจคลื่นไฟฟ้าหัวใจ 12 ลีด (EKG)','Fukuda','FX-8100',128000],
+    ['เครื่องจี้ห้ามเลือดไฟฟ้า','Valleylab','Force FX',430000],
+    ['โคมไฟผ่าตัด','Draeger','Polaris 200',650000],
+    ['เตียงผู้ป่วยไฟฟ้า 3 ไกร์','Paramount','PK-3',68000],
+    ['รถเข็นนั่ง','Fascino','FS-809',4500],
+    ['เครื่องวัดความดันโลหิตอัตโนมัติ','Omron','HBP-1320',9800],
+    ['เครื่องให้ความอบอุ่นทารก (Infant warmer)','Atom','Infa Warmer i',285000],
+    ['เครื่องวัดออกซิเจนในเลือด (Pulse oximeter)','Nellcor','PM10N',22000],
+    ['ตู้เย็นเก็บยา','Haier','HYC-360',39000]
+  ];
+  let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  const rows=[['ลำดับ','เลขครุภัณฑ์','ชื่อครุภัณฑ์','ยี่ห้อ','รุ่น','วันที่ได้มา','ราคา (บาท)','แหล่งเงิน','หน่วยงาน']];
+  for(let i=1;i<=96;i++){
+    const t=T[Math.floor(rnd()*T.length)], dept=D[Math.floor(rnd()*D.length)];
+    const yearsAgo=Math.floor(rnd()*15)+1, y=2569-yearsAgo, m=1+Math.floor(rnd()*12), d=1+Math.floor(rnd()*28);
+    const donated=rnd()<.2; const price=donated?0:Math.round(t[3]*(0.9+rnd()*0.25)/100)*100;
+    const noDate=rnd()<.02;
+    rows.push([i, `6515-${String(1000+i).slice(1)}-${String(y).slice(2)}`, t[0], t[1], t[2], noDate?'':`${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`, price, donated?'เงินบริจาค':(rnd()<.7?'เงินงบประมาณ':'เงินบำรุง'), dept]);
+  }
+  return rows;
+}
+
+/* ---------- loading ---------- */
+function useAoa(aoa, label, isSample){
+  state.aoa=aoa; state.fileLabel=label; state.isSample=isSample; state.overrides={};
+  state.headerRow = detectHeader(aoa); $('#headerRow').value=state.headerRow+1;
+  buildHeaders(); autoMap(); renderMap(); run();
+  $('#fileName').innerHTML = esc(label)+(isSample?' <span class="badge">ตัวอย่าง ไม่ใช่ข้อมูลจริง</span>':'');
+  $('#fileInfo').textContent = `${aoa.length-state.headerRow-1} แถวข้อมูล`;
+}
+function loadSheet(name){
+  const ws=state.wb.Sheets[name];
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});
+  useAoa(aoa, state.fileLabel, false);
+}
+function detectHeader(aoa){
+  let best=0, bestScore=-1;
+  for(let r=0;r<Math.min(20,aoa.length);r++){
+    const cells=(aoa[r]||[]).map(norm); let sc=0;
+    FIELDS.forEach(f=>{ if(cells.some(c=>c && f.a.some(a=>c.includes(a)))) sc++; });
+    if(sc>bestScore){bestScore=sc;best=r;}
+  }
+  return best;
+}
+function buildHeaders(){
+  const h=state.aoa[state.headerRow]||[]; const width=Math.max(...state.aoa.slice(0,state.headerRow+30).map(r=>r.length),h.length);
+  state.headers=[]; for(let i=0;i<width;i++) state.headers.push(String(h[i]==null||h[i]===''?`คอลัมน์ ${XLSX.utils.encode_col(i)}`:h[i]).trim());
+}
+function autoMap(){
+  const used=new Set(); state.map={};
+  const nh=state.headers.map(norm);
+  FIELDS.forEach(f=>{
+    for(const a of f.a){ const i=nh.findIndex((h,j)=>!used.has(j)&&h.includes(a)); if(i>=0){state.map[f.k]=i;used.add(i);return;} }
+    state.map[f.k]=-1;
+  });
+}
+function renderMap(){
+  const opts=['<option value="-1">— ไม่มี —</option>'].concat(state.headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`)).join('');
+  $('#mapGrid').innerHTML=FIELDS.slice().sort((a,b)=>(b.req?1:0)-(a.req?1:0)).map(f=>`<label class="f">${esc(f.l)}${f.req?' <span class="req">*</span>':''}<select data-k="${f.k}" id="map-${f.k}">${opts}</select></label>`).join('');
+  FIELDS.forEach(f=>{ $('#map-'+f.k).value=state.map[f.k]; });
+}
+
+/* ---------- processing ---------- */
+function essentials(){
+  return $('#essList').value.split('\n').map(l=>l.split(',').map(s=>s.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({name:a[0], syn:a.map(norm)}));
+}
+function groupName(name){
+  return norm(name).replace(/(ยี่ห้อ|รุ่น|model|brand|s\/?n).*$/,'').replace(/\d+(\.\d+)?\s*(ลีด|lead|ช่อง|ไกร์|channel)?/g,' ').replace(/\s+/g,' ').trim();
+}
+function run(){
+  if(!state.aoa) return;
+  const M=state.map, g=(row,k)=>M[k]>=0?row[M[k]]:'';
+  const ref=$('#refDate').value?new Date($('#refDate').value+'T00:00:00'):new Date();
+  const thP=+$('#thPrice').value||0, thPA=+$('#thPriceAge').value||0, thO=+$('#thOld').value||0, thOP=+$('#thOldPrice').value||0, thE=+$('#thEssAge').value||0;
+  const ess=essentials();
+  const items=[];
+  state.aoa.slice(state.headerRow+1).forEach((row,ri)=>{
+    const name=String(g(row,'name')||'').trim(), code=String(g(row,'code')||'').trim();
+    if(!name&&!code) return;
+    const type=String(g(row,'type')||'').trim();
+    const hay=norm(name+' '+type);
+    const e=ess.find(x=>x.syn.some(s=>s&&hay.includes(s)));
+    const date=parseDate(g(row,'date'));
+    const age=date?(ref-date)/(365.2425*864e5):null;
+    const price=parsePrice(g(row,'price'));
+    const brand=String(g(row,'brand')||'').trim(), model=String(g(row,'model')||'').trim();
+    const gk=e?e.name:(type?type:(groupName(name)||name));
+    items.push({row:ri+state.headerRow+2, code, name, type, brand, model, serial:String(g(row,'serial')||'').trim(),
+      dept:String(g(row,'dept')||'').trim()||'(ไม่ระบุหน่วยงาน)', source:String(g(row,'source')||'').trim(),
+      rawDate:g(row,'date'), date, age:age!=null&&age<0?0:age, price, ess:e?e.name:null, gk, bm:gk+'|'+norm(brand)+'|'+norm(model)});
+  });
+  // reference prices
+  const byG={}, byBM={};
+  items.forEach(it=>{ if(it.price>0){ (byG[it.gk]=byG[it.gk]||[]).push(it.price); (byBM[it.bm]=byBM[it.bm]||[]).push(it.price);} });
+  const zeroG={};
+  items.forEach(it=>{
+    it.reasons=[];
+    if(it.price>0){ it.used=it.price; it.priceSrc='ราคาในทะเบียน'; }
+    else {
+      zeroG[it.gk]=(zeroG[it.gk]||0)+1;
+      const ov=state.overrides[it.gk];
+      if(ov>0){ it.used=ov; it.priceSrc='ราคาที่กำหนดเอง'; it.est=true; }
+      else if(byBM[it.bm]){ it.used=median(byBM[it.bm]); it.priceSrc=`ประเมินจากยี่ห้อ/รุ่นเดียวกัน ${byBM[it.bm].length} เครื่อง`; it.est=true; }
+      else if(byG[it.gk]){ it.used=median(byG[it.gk]); it.priceSrc=`ประเมินจากชนิดเดียวกัน ${byG[it.gk].length} เครื่อง`; it.est=true; }
+      else { it.used=null; it.priceSrc='ไม่มีราคาเทียบ'; }
+    }
+    const a=it.age;
+    if(a!=null){
+      if(it.used!=null&&it.used>=thP&&a>thPA) it.reasons.push(it.est?'est':'price');
+      if(a>=thO&&it.used!=null&&it.used>=thOP) it.reasons.push('old');
+      if(it.ess&&a>thE) it.reasons.push('ess');
+      if(it.used==null&&a>thPA&&!it.reasons.length) it.reasons.push('noprice');
+    } else if((it.used!=null&&it.used>=thP)||it.ess){ it.reasons.push('noage'); }
+  });
+  state.items=items;
+  state.flagged=items.filter(i=>i.reasons.length).sort((x,y)=>x.dept.localeCompare(y.dept,'th')||(y.age||0)-(x.age||0));
+  state.groups=Object.keys(zeroG).map(k=>{const p=byG[k]||[];return {k,zero:zeroG[k],n:p.length,min:p.length?Math.min(...p):null,med:median(p),max:p.length?Math.max(...p):null};}).sort((a,b)=>b.zero-a.zero);
+  state.crit={thP,thPA,thO,thOP,thE,ref};
+  render();
+}
+
+const RL={price:['A','c-price','ราคา ≥ เกณฑ์'], est:['A*','c-est','ราคาประเมิน ≥ เกณฑ์'], old:['B','c-old','อายุ ≥ เกณฑ์'], ess:['C','c-ess','เครื่องมือจำเป็น'], noprice:['!','c-warn','ราคา 0 ไม่มีราคาเทียบ'], noage:['!','c-warn','ไม่ทราบวันที่ได้มา']};
+function reasonText(r){ const c=state.crit;
+  return {price:`ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, est:`ราคาประเมิน ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, old:`ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี`, ess:`เครื่องมือจำเป็น อายุ > ${c.thE} ปี`, noprice:'ราคา 0 บาท ไม่มีราคาเทียบ ควรตรวจสอบราคา', noage:'ไม่ทราบวันที่ได้มา ควรตรวจสอบ'}[r]; }
+const isWarn=r=>r==='noprice'||r==='noage';
+
+function render(){
+  const F=state.flagged, all=state.items;
+  const cnt=k=>F.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length;
+  const depts=[...new Set(F.map(i=>i.dept))].sort((a,b)=>a.localeCompare(b,'th'));
+  $('#kpis').innerHTML=[
+    ['v',all.length,'ครุภัณฑ์ในไฟล์'],['hl',F.length,'เข้าเกณฑ์ประเมิน'],['',depts.length,'หน่วยงานที่ต้องส่ง'],
+    ['',cnt('price'),'A ราคาจริง ≥ เกณฑ์'],['',cnt('est'),'A* ราคาประเมิน ≥ เกณฑ์'],['',cnt('old'),'B อายุ ≥ '+state.crit.thO+' ปี'],['',cnt('ess'),'C เครื่องมือจำเป็น'],['',cnt('warn'),'ข้อมูลไม่ครบ ต้องตรวจสอบ']
+  ].map(([c,v,l])=>`<div class="kpi ${c}"><span class="v">${v.toLocaleString('th-TH')}</span><span class="l">${l}</span></div>`).join('');
+  $('#refNote').textContent=`อายุคำนวณ ณ ${beDate(state.crit.ref)}`;
+  const cur=$('#fDept').value;
+  $('#fDept').innerHTML='<option value="">ทุกหน่วยงาน</option>'+depts.map(d=>`<option>${esc(d)}</option>`).join('');
+  if(depts.includes(cur)) $('#fDept').value=cur;
+  renderTable();
+  // dept summary
+  const total={}; all.forEach(i=>total[i.dept]=(total[i.dept]||0)+1);
+  $('#deptTable tbody').innerHTML=depts.map(d=>{ const L=F.filter(i=>i.dept===d); const c=k=>L.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length;
+    return `<tr><td>${esc(d)}</td><td class="r num">${total[d]}</td><td class="r num"><b>${L.length}</b></td><td class="r num">${c('price')||''}</td><td class="r num">${c('est')||''}</td><td class="r num">${c('old')||''}</td><td class="r num">${c('ess')||''}</td><td class="r num">${c('warn')||''}</td><td><button type="button" data-dept="${esc(d)}">ส่งออก</button></td></tr>`; }).join('')||'<tr><td colspan="9" class="muted">ไม่มีรายการเข้าเกณฑ์</td></tr>';
+  // ref price
+  $('#refTable tbody').innerHTML=state.groups.map((g,i)=>`<tr><td>${esc(g.k)}</td><td class="r num">${g.zero}</td><td class="r num">${g.n}</td><td class="r num">${fmt(g.min)}</td><td class="r num"><b>${g.med==null?'<span class="badge">ไม่มีข้อมูล</span>':fmt(g.med)}</b></td><td class="r num">${fmt(g.max)}</td><td><input class="override" type="number" id="ov-${i}" data-gk="${esc(g.k)}" min="0" step="1000" value="${state.overrides[g.k]||''}" placeholder="—"></td></tr>`).join('')||'<tr><td colspan="7" class="muted">ไม่มีเครื่องราคา 0 บาท</td></tr>';
+}
+function filtered(){
+  const d=$('#fDept').value, r=$('#fReason').value, q=norm($('#fText').value);
+  return state.flagged.filter(i=>(!d||i.dept===d)&&(!r||(r==='warn'?i.reasons.some(isWarn):i.reasons.includes(r)))&&(!q||norm([i.name,i.code,i.brand,i.model,i.serial].join(' ')).includes(q)));
+}
+function renderTable(){
+  const L=filtered(), LIM=600;
+  $('#resTable tbody').innerHTML=L.slice(0,LIM).map(i=>`<tr>
+    <td>${esc(i.dept)}</td><td class="num">${esc(i.code)}</td><td>${esc(i.name)}${i.source?`<div class="muted small">${esc(i.source)}</div>`:''}</td>
+    <td>${esc([i.brand,i.model].filter(Boolean).join(' / '))}</td><td class="num">${i.date?beDate(i.date):`<span class="zero">${esc(i.rawDate)||'—'}</span>`}</td>
+    <td class="r num">${fmtAge(i.age)}</td><td class="r num ${i.price>0?'':'zero'}">${i.price==null?'—':fmt(i.price)}</td>
+    <td class="r num">${i.used==null?'—':fmt(i.used)}${i.est?`<div class="est">${esc(i.priceSrc)}</div>`:''}</td>
+    <td>${i.reasons.map(r=>`<span class="pill ${RL[r][1]}" title="${esc(reasonText(r))}">${RL[r][0]} ${RL[r][2]}</span>`).join('')}</td></tr>`).join('')
+    ||'<tr><td colspan="9" class="muted">ไม่พบรายการตามตัวกรอง</td></tr>';
+  $('#resCount').textContent=L.length>LIM?`แสดง ${LIM} จาก ${L.length} รายการ ไฟล์ที่ส่งออกมีครบทุกรายการ`:`${L.length} รายการ`;
+}
+
+/* ---------- export ---------- */
+const OUT_H=['ลำดับ','เลขครุภัณฑ์','ชื่อครุภัณฑ์','ยี่ห้อ','รุ่น','Serial number','วันที่ได้มา (พ.ศ.)','อายุ (ปี)','ราคาในทะเบียน (บาท)','ราคาที่ใช้ประเมิน (บาท)','ที่มาของราคา','แหล่งเงิน','เกณฑ์ที่เข้า','สภาพปัจจุบัน (ดี/พอใช้/ชำรุด)','ซ่อมใน 1 ปีที่ผ่านมา (ครั้ง)','ความเห็นหน่วยงาน (ใช้งานต่อ/ส่งซ่อม/เสนอจำหน่ายและทดแทน)','เหตุผลเพิ่มเติม','ผู้ให้ความเห็น','วันที่'];
+const COLW=[6,18,38,14,14,14,13,8,14,14,26,14,34,18,14,30,30,18,12];
+function rowOut(i,n){ return [n,i.code,i.name,i.brand,i.model,i.serial,i.date?beDate(i.date):String(i.rawDate||''),i.age==null?'':Math.round(i.age*10)/10,i.price==null?'':i.price,i.used==null?'':Math.round(i.used),i.priceSrc,i.source,i.reasons.map(reasonText).join('; '),'','','','','','']; }
+function deptSheet(dept,list){
+  const c=state.crit;
+  const aoa=[[`แบบประเมินเครื่องมือแพทย์เพื่อพิจารณาการเสื่อมสภาพ · หน่วยงาน ${dept}`],
+    [`เกณฑ์: (A) ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี  (A*) ราคา 0 บาท ใช้ราคาเครื่องชนิดเดียวกันแทน  (B) ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี  (C) เครื่องมือจำเป็น อายุ > ${c.thE} ปี · คำนวณอายุ ณ ${beDate(c.ref)} · ${list.length} รายการ`],
+    ['กรุณากรอกคอลัมน์สภาพปัจจุบัน ความเห็นหน่วยงาน และผู้ให้ความเห็น แล้วส่งคืนงานพัสดุ/ศูนย์เครื่องมือแพทย์'],[],OUT_H];
+  list.forEach((i,n)=>aoa.push(rowOut(i,n+1)));
+  aoa.push([],['','','ลงชื่อ ............................................ หัวหน้าหน่วยงาน'],['','','วันที่ ............../............../..............']);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=COLW.map(w=>({wch:w}));
+  ws['!merges']=[0,1,2].map(r=>({s:{r,c:0},e:{r,c:OUT_H.length-1}}));
+  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:4,c:0},e:{r:4+list.length,c:OUT_H.length-1}})};
+  for(let r=5;r<5+list.length;r++){ ['I','J'].forEach(col=>{const cell=ws[col+(r+1)]; if(cell&&cell.t==='n') cell.z='#,##0';}); }
+  return ws;
+}
+const safeSheet=(s,used)=>{ let b=s.replace(/[\[\]:*?\/\\]/g,' ').slice(0,31).trim()||'หน่วยงาน', n=b, k=2; while(used.has(n)){ n=b.slice(0,28)+' '+k++; } used.add(n); return n; };
+const safeFile=s=>s.replace(/[\\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim();
+const stamp=()=>{const d=new Date();return `${d.getFullYear()+543}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;};
+function byDept(){ const m=new Map(); state.flagged.forEach(i=>{ if(!m.has(i.dept)) m.set(i.dept,[]); m.get(i.dept).push(i); }); return m; }
+function summarySheet(m){
+  const aoa=[['สรุปเครื่องมือแพทย์ที่เข้าเกณฑ์ประเมินการเสื่อมสภาพ'],[`ไฟล์ต้นทาง: ${state.fileLabel} · คำนวณอายุ ณ ${beDate(state.crit.ref)}`],[],['หน่วยงาน','เข้าเกณฑ์','A ราคาจริง','A* ราคาประเมิน','B อายุ','C เครื่องมือจำเป็น','ต้องตรวจสอบข้อมูล']];
+  m.forEach((L,d)=>{const c=k=>L.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length; aoa.push([d,L.length,c('price'),c('est'),c('old'),c('ess'),c('warn')]);});
+  aoa.push(['รวม',state.flagged.length]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:30},{wch:10},{wch:12},{wch:14},{wch:10},{wch:16},{wch:16}]; return ws;
+}
+function refSheet(){
+  const aoa=[['ชนิดเครื่องมือ','เครื่องราคา 0','เครื่องที่มีราคา','ต่ำสุด','มัธยฐาน','สูงสุด','กำหนดเอง']];
+  state.groups.forEach(g=>aoa.push([g.k,g.zero,g.n,g.min??'',g.med??'',g.max??'',state.overrides[g.k]||'']));
+  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:40},{wch:12},{wch:14},{wch:12},{wch:12},{wch:12},{wch:12}]; return ws;
+}
+const wbBytes=wb=>XLSX.write(wb,{bookType:'xlsx',type:'array'});
+const dlP=(window.claude&&typeof window.claude.use==='function')?window.claude.use('downloads').catch(()=>null):Promise.resolve(null);
+async function saveFile(filename,data,mime){
+  const dl=await dlP;
+  if(dl){
+    try{ await dl.save({filename,data}); toast('บันทึกไฟล์แล้ว'); }
+    catch(e){ toast(e&&e.code==='declined'?'ยกเลิกการบันทึก':e&&e.code==='rate_limited'?'มีหน้าต่างบันทึกเปิดอยู่ ลองใหม่อีกครั้ง':'บันทึกไฟล์ไม่ได้ในมุมมองนี้'); }
+    return;
+  }
+  const blob=data instanceof Blob?data:new Blob([data],{type:mime||'application/octet-stream'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
+}
+const XMIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+function guard(){ if(!state.flagged.length){ toast('ยังไม่มีรายการเข้าเกณฑ์ให้ส่งออก'); return false;} return true; }
+$('#exAll').addEventListener('click',()=>{
+  if(!guard()) return;
+  const m=byDept(), wb=XLSX.utils.book_new(), used=new Set(['สรุป','ราคาอ้างอิง']);
+  XLSX.utils.book_append_sheet(wb,summarySheet(m),'สรุป');
+  m.forEach((L,d)=>XLSX.utils.book_append_sheet(wb,deptSheet(d,L),safeSheet(d,used)));
+  if(state.groups.length) XLSX.utils.book_append_sheet(wb,refSheet(),'ราคาอ้างอิง');
+  saveFile(`ประเมินเครื่องมือแพทย์เสื่อมสภาพ_ทุกหน่วยงาน_${stamp()}.xlsx`, new Blob([wbBytes(wb)]), XMIME);
+});
+$('#exZip').addEventListener('click',async()=>{
+  if(!guard()) return;
+  const zip=new JSZip(), m=byDept(), names=new Set();
+  m.forEach((L,d)=>{ const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,deptSheet(d,L),'แบบประเมิน');
+    let f=safeFile(d), n=f, k=2; while(names.has(n)) n=f+' '+k++; names.add(n);
+    zip.file(`${n}.xlsx`, wbBytes(wb)); });
+  const wbS=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wbS,summarySheet(m),'สรุป'); if(state.groups.length) XLSX.utils.book_append_sheet(wbS,refSheet(),'ราคาอ้างอิง');
+  zip.file('_สรุปทุกหน่วยงาน.xlsx', wbBytes(wbS));
+  const blob=await zip.generateAsync({type:'blob'});
+  saveFile(`ประเมินเครื่องมือแพทย์เสื่อมสภาพ_แยกหน่วยงาน_${stamp()}.zip`, blob, 'application/zip');
+});
+$('#deptTable').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-dept]'); if(!b) return; const d=b.dataset.dept, L=byDept().get(d)||[];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,deptSheet(d,L),'แบบประเมิน');
+  saveFile(`ประเมินเครื่องมือแพทย์_${safeFile(d)}_${stamp()}.xlsx`, new Blob([wbBytes(wb)]), XMIME);
+});
+
+/* ---------- events ---------- */
+async function readFile(f){
+  $('#loadErr').hidden=true;
+  try{
+    const buf=await f.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    state.wb=wb; state.fileLabel=f.name;
+    $('#sheetSel').innerHTML=wb.SheetNames.map(n=>`<option>${esc(n)}</option>`).join('');
+    // pick the sheet with most rows
+    let best=wb.SheetNames[0], bestN=0; wb.SheetNames.forEach(n=>{const r=wb.Sheets[n]['!ref']; if(r){const N=XLSX.utils.decode_range(r).e.r; if(N>bestN){bestN=N;best=n;}}});
+    $('#sheetSel').value=best; loadSheet(best);
+    toast(`อ่านไฟล์ ${f.name} แล้ว ตรวจการจับคู่คอลัมน์ในขั้นที่ 2`);
+  }catch(err){ $('#loadErr').textContent='อ่านไฟล์นี้ไม่ได้ ตรวจว่าเป็นไฟล์ .xlsx, .xls หรือ .csv ที่ไม่ได้ตั้งรหัสผ่าน'; $('#loadErr').hidden=false; }
+}
+$('#file').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) readFile(f); e.target.value=''; });
+const drop=$('#drop');
+['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) readFile(f); });
+$('#btnSample').addEventListener('click',()=>{ state.wb=null; $('#sheetSel').innerHTML='<option>ตัวอย่าง</option>'; useAoa(makeSample(),'ข้อมูลตัวอย่าง (สมมติ)',true); });
+$('#sheetSel').addEventListener('change',e=>{ if(state.wb) loadSheet(e.target.value); });
+$('#headerRow').addEventListener('change',e=>{ if(!state.aoa) return; state.headerRow=Math.max(0,(+e.target.value||1)-1); buildHeaders(); autoMap(); renderMap(); run(); });
+$('#mapGrid').addEventListener('change',e=>{ const s=e.target.closest('select[data-k]'); if(!s) return; state.map[s.dataset.k]=+s.value; run(); });
+['#thPrice','#thPriceAge','#thOld','#thOldPrice','#thEssAge','#refDate'].forEach(s=>$(s).addEventListener('input',()=>{save();run();}));
+let essT; $('#essList').addEventListener('input',()=>{clearTimeout(essT);essT=setTimeout(()=>{save();run();},350);});
+['#fDept','#fReason'].forEach(s=>$(s).addEventListener('change',renderTable));
+$('#fText').addEventListener('input',renderTable);
+$('#refTable').addEventListener('change',e=>{ const inp=e.target.closest('input[data-gk]'); if(!inp) return; const v=+inp.value; if(v>0) state.overrides[inp.dataset.gk]=v; else delete state.overrides[inp.dataset.gk]; run(); });
+
+/* ---------- init ---------- */
+const saved=load();
+$('#essList').value=saved.ess||DEFAULT_ESS;
+['thPrice','thPriceAge','thOld','thOldPrice','thEssAge'].forEach(k=>{ if(saved[k]) $('#'+k).value=saved[k]; });
+const t=new Date(); $('#refDate').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+if(typeof XLSX==='undefined'){ $('#loadErr').textContent='โหลดไลบรารีอ่าน Excel ไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วโหลดหน้าใหม่'; $('#loadErr').hidden=false; return; }
+$('#sheetSel').innerHTML='<option>ตัวอย่าง</option>';
+useAoa(makeSample(),'ข้อมูลตัวอย่าง (สมมติ)',true);
+})();
+</script>
+
+</body>
+</html>
