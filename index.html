@@ -164,7 +164,7 @@ td.num{white-space:nowrap}
         <textarea id="essList" spellcheck="false"></textarea>
         <span><button type="button" id="essReset">คืนค่ารายการเริ่มต้น</button></span>
       </label>
-      <label class="f">ไม่นำมาคัดกรอง · ชื่อครุภัณฑ์ที่ขึ้นต้นด้วยคำเหล่านี้ คั่นด้วยจุลภาค · ใส่ - หน้าคำที่ต้องการยกเว้นกลับเข้ามา
+      <label class="f">ไม่นำมาคัดกรอง · ชื่อครุภัณฑ์ที่ขึ้นต้นด้วยคำเหล่านี้ คั่นด้วยจุลภาค · ใส่ - หน้าคำที่ต้องการเก็บไว้ · ใส่ @ราคา เพื่อเก็บเครื่องที่ราคาตั้งแต่เท่านั้นไว้ เช่น @50000
         <textarea id="skipList" spellcheck="false" style="min-height:120px"></textarea>
         <span><button type="button" id="skipReset">คืนค่ารายการเริ่มต้น</button></span>
       </label>
@@ -250,9 +250,9 @@ const DEFAULT_SKIP = [
  'ตู้เก็บ, -เกล็ดเลือด',
  'รถเข็น, รถทำแผล, รถฉีดยา, รถฉุกเฉิน',
  'คลิบเด็กอ่อน, คลิกเด็กอ่อน, คลิปเด็กอ่อน',
- 'เก้าอี้, Stair Chair'
+ 'เก้าอี้, Stair Chair, -ทันต, @50000'
 ].join('\n');
-const STORE='mdscreen.v3';
+const STORE='mdscreen.v4';
 const state = {aoa:null, wb:null, fileLabel:'', isSample:true, headerRow:0, headers:[], map:{}, overrides:{}, items:[], flagged:[], groups:[]};
 
 /* ---------- helpers ---------- */
@@ -383,7 +383,7 @@ function run(){
   if(!state.aoa) return;
   const M=state.map, g=(row,k)=>{ const v=M[k]>=0?row[M[k]]:''; return typeof v==='string'?blank(v):v; };
   const exS=new Set($('#exStatus').value.split(',').map(norm).filter(Boolean)); let excluded=0, skipped=0;
-  const skip=$('#skipList').value.split('\n').map(l=>l.split(',').map(x=>x.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({pre:a.filter(x=>!x.startsWith('-')).map(norm).filter(Boolean), not:a.filter(x=>x.startsWith('-')).map(x=>norm(x.slice(1))).filter(Boolean)}));
+  const skip=$('#skipList').value.split('\n').map(l=>l.split(',').map(x=>x.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({keep:+(a.find(x=>x.startsWith('@'))||'').slice(1).replace(/[^\d.]/g,'')||0, pre:a.filter(x=>!/^[-@]/.test(x)).map(norm).filter(Boolean), not:a.filter(x=>x.startsWith('-')).map(x=>norm(x.slice(1))).filter(Boolean)}));
   const ref=$('#refDate').value?new Date($('#refDate').value+'T00:00:00'):new Date();
   const thP=+$('#thPrice').value||0, thPA=+$('#thPriceAge').value||0, thO=+$('#thOld').value||0, thOP=+$('#thOldPrice').value||0, thE=+$('#thEssAge').value||0;
   const ess=essentials();
@@ -393,7 +393,7 @@ function run(){
     if(!name&&!code) return;
     const status=String(g(row,'status')||'').trim();
     if(status&&exS.has(norm(status))){ excluded++; return; }
-    const nn=norm(name); if(skip.some(x=>x.pre.some(p=>nn.startsWith(p))&&!x.not.some(p=>nn.includes(p)))){ skipped++; return; }
+    const nn=norm(name); const pr0=parsePrice(g(row,'price'))||0; if(skip.some(x=>x.pre.some(p=>nn.startsWith(p))&&!x.not.some(p=>nn.includes(p))&&!(x.keep&&pr0>=x.keep))){ skipped++; return; }
     const type=String(g(row,'type')||'').trim();
     const hay=norm(name+' '+type);
     const e=ess.find(x=>x.syn.some(s=>s&&hay.includes(s))&&!x.not.some(s=>hay.includes(s)));
