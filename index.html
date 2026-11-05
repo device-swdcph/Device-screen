@@ -155,11 +155,13 @@ td.num{white-space:nowrap}
         <div class="rule"><span class="code c-old">B</span><div class="txt">ราคา ≥ <input type="number" id="thOldPrice" value="100000" step="1000"> บาท และอายุตั้งแต่ <input type="number" id="thOld" value="10" step="0.5"> ปีขึ้นไป</div></div>
         <div class="rule"><span class="code c-ess">C</span><div class="txt">เครื่องมือจำเป็นตามรายการด้านขวา อายุมากกว่า <input type="number" id="thEssAge" value="5" step="0.5"> ปี (ทุกราคา)</div></div>
         <div class="rule"><span class="code c-est">A*</span><div class="txt">ราคา 0 บาท ใช้ราคากลางของเครื่องชนิดเดียวกันที่มีราคาในไฟล์แทน แล้วเทียบกับเกณฑ์ A</div></div>
+        <label class="f">ไม่นำรายการที่มีสถานะต่อไปนี้มาคัดกรอง (คั่นด้วยจุลภาค ต้องตรงทั้งคำ)<input type="text" id="exStatus" value="จำหน่าย, รอจำหน่าย"></label>
         <label class="f">คำนวณอายุ ณ วันที่<input type="date" id="refDate"></label>
         <p class="note">ราคาประเมินใช้ค่ามัธยฐานของเครื่องยี่ห้อและรุ่นเดียวกันก่อน ถ้าไม่มีจึงใช้เครื่องชนิดเดียวกันทั้งหมด ค่ามัธยฐานไม่ถูกดึงสูงหรือต่ำเกินจริงจากเครื่องราคาผิดปกติ ปรับราคาเองได้ในตารางราคาอ้างอิงด้านล่าง</p>
       </div>
-      <label class="f">รายการเครื่องมือจำเป็น · หนึ่งชนิดต่อบรรทัด คั่นชื่อเรียกอื่นด้วยจุลภาค (ชื่อแรกใช้เป็นชื่อกลุ่ม)
+      <label class="f">รายการเครื่องมือจำเป็น · หนึ่งชนิดต่อบรรทัด คั่นชื่อเรียกอื่นด้วยจุลภาค · ใส่ - หน้าคำที่ต้องการยกเว้น เช่น -มือบีบ
         <textarea id="essList" spellcheck="false"></textarea>
+        <span><button type="button" id="essReset">คืนค่ารายการเริ่มต้น</button></span>
       </label>
     </div>
   </section>
@@ -217,27 +219,29 @@ const FIELDS = [
   {k:'model', l:'รุ่น', a:['รุ่น','model']},
   {k:'brand', l:'ยี่ห้อ', a:['ยี่ห้อ','brand','ผู้ผลิต','manufacturer']},
   {k:'price', l:'ราคา', req:true, a:['ราคาทุน','ราคาต่อหน่วย','ราคา','มูลค่า','price','cost']},
-  {k:'date',  l:'วันที่ / ปีที่ได้มา', req:true, a:['วันที่ได้มา','วันที่รับ','วันที่ซื้อ','ปีที่ได้มา','ปีที่ซื้อ','ปีงบ','วันที่','date','year']},
+  {k:'date',  l:'วันที่ / ปีที่ได้มา', req:true, a:['วันที่ได้รับ','วันที่ได้มา','วันที่รับ','วันที่ตรวจรับ','วันที่ซื้อ','ปีที่ได้มา','ปีที่ซื้อ','ปีงบ','วันที่','date','year']},
   {k:'dept',  l:'หน่วยงาน', req:true, a:['หน่วยงาน','แผนก','ฝ่าย','ward','department','ตึก','สถานที่ตั้ง','ที่ตั้ง','location']},
-  {k:'source',l:'แหล่งเงิน / วิธีได้มา', a:['แหล่งเงิน','วิธีได้มา','ที่มา','งบ','source','fund']},
-  {k:'type',  l:'ชนิด / ประเภท', a:['ชนิด','ประเภท','กลุ่ม','type','category']},
+  {k:'status',l:'สถานะครุภัณฑ์', a:['สถานะครุภัณฑ์','สถานะ','status']},
+  {k:'source',l:'แหล่งเงิน / ประเภทเงิน', a:['แหล่งเงิน','ประเภทเงิน','งบ','source','fund']},
+  {k:'method',l:'วิธีการได้มา', a:['วิธีการได้มา','วิธีได้มา','ที่มา']},
+  {k:'type',  l:'ชนิด / รหัสมาตรฐาน (ใช้จัดกลุ่มเทียบราคา)', a:['รหัสมาตรฐาน','ชนิด','ประเภท','กลุ่ม','type','category']},
   {k:'name',  l:'ชื่อครุภัณฑ์', req:true, a:['ชื่อครุภัณฑ์','ชื่อเครื่องมือ','ชื่อ','รายการ','name','description','รายละเอียด']}
 ];
 const DEFAULT_ESS = [
- 'Infusion pump, เครื่องควบคุมการให้สารละลาย, เครื่องให้สารละลาย, เครื่องควบคุมการไหลของสารละลาย',
+ 'Infusion pump, สารน้ำทางหลอดเลือดดำ, เครื่องควบคุมการให้สารละลาย, เครื่องให้สารละลาย, เครื่องควบคุมการไหลของสารละลาย',
  'Syringe pump, เครื่องควบคุมการให้ยาแบบกระบอกฉีด, เครื่องฉีดยาอัตโนมัติ',
- 'Defibrillator, เครื่องกระตุกหัวใจ, AED',
- 'Ventilator, เครื่องช่วยหายใจ',
- 'Patient monitor, เครื่องติดตามสัญญาณชีพ, เครื่องวัดสัญญาณชีพ, monitor',
+ 'Defibrillator, เครื่องกระตุกหัวใจ, เครื่องกระตุ้นหัวใจจากภายนอก, AED',
+ 'Ventilator, เครื่องช่วยหายใจ, -มือบีบ, -Ambu, -Respirometer',
+ 'Patient monitor, เครื่องติดตามสัญญาณชีพ, เครื่องติดตามการทำงานของหัวใจและสัญญาณชีพ, เครื่องวัดสัญญาณชีพ',
  'Suction, เครื่องดูดเสมหะ, เครื่องดูดของเหลว',
- 'Pulse oximeter, เครื่องวัดออกซิเจนในเลือด',
+ 'Pulse oximeter, เครื่องวัดออกซิเจนในเลือด, ความอิ่มตัวของออกซิเจนในเลือด',
  'EKG, ECG, เครื่องตรวจคลื่นไฟฟ้าหัวใจ',
  'Infant warmer, เครื่องให้ความอบอุ่นทารก, radiant warmer',
  'Incubator, ตู้อบเด็ก',
  'Phototherapy, เครื่องส่องไฟรักษาทารกตัวเหลือง',
- 'High flow nasal cannula, HFNC, เครื่องให้ออกซิเจนอัตราไหลสูง'
+ 'High flow nasal cannula, HFNC, เครื่องให้ออกซิเจนอัตราไหลสูง, ออกซิเจนด้วยอัตราการไหลสูง, Oxygen Delivery Units, High-Flow'
 ].join('\n');
-const STORE='mdscreen.v1';
+const STORE='mdscreen.v2';
 const state = {aoa:null, wb:null, fileLabel:'', isSample:true, headerRow:0, headers:[], map:{}, overrides:{}, items:[], flagged:[], groups:[]};
 
 /* ---------- helpers ---------- */
@@ -246,11 +250,12 @@ const norm = s => thaiDigits(s==null?'':s).toLowerCase().replace(/[\s_\-\.:()\[\
 const fmt = n => n==null||isNaN(n) ? '' : Math.round(n).toLocaleString('th-TH');
 const fmtAge = a => a==null ? '' : a.toFixed(1);
 const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const blank = v => { const s=String(v==null?'':v).trim(); return /^(-+|ไม่ระบุ.*|n\/?a\b.*|null|none)$/i.test(s) ? '' : s; };
 const median = arr => { const a=[...arr].sort((x,y)=>x-y), m=a.length>>1; return a.length? (a.length%2?a[m]:(a[m-1]+a[m])/2) : null; };
 const beDate = d => d ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()+543}` : '';
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,3200); }
 function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
-function save(){ try{ localStorage.setItem(STORE, JSON.stringify({ess:$('#essList').value, thPrice:$('#thPrice').value, thPriceAge:$('#thPriceAge').value, thOld:$('#thOld').value, thOldPrice:$('#thOldPrice').value, thEssAge:$('#thEssAge').value})); }catch(e){} }
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify({ess:$('#essList').value, thPrice:$('#thPrice').value, thPriceAge:$('#thPriceAge').value, thOld:$('#thOld').value, thOldPrice:$('#thOldPrice').value, exStatus:$('#exStatus').value, thEssAge:$('#thEssAge').value})); }catch(e){} }
 
 const TH_MONTHS = [['มกราคม','มค'],['กุมภาพันธ์','กพ'],['มีนาคม','มีค'],['เมษายน','เมย'],['พฤษภาคม','พค'],['มิถุนายน','มิย'],['กรกฎาคม','กค'],['สิงหาคม','สค'],['กันยายน','กย'],['ตุลาคม','ตค'],['พฤศจิกายน','พย'],['ธันวาคม','ธค']];
 function fixYear(y){ if(y<100) y+=2500; if(y>2400) y-=543; return y; }
@@ -358,14 +363,15 @@ function renderMap(){
 
 /* ---------- processing ---------- */
 function essentials(){
-  return $('#essList').value.split('\n').map(l=>l.split(',').map(s=>s.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({name:a[0], syn:a.map(norm)}));
+  return $('#essList').value.split('\n').map(l=>l.split(',').map(s=>s.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({name:a[0], syn:a.filter(x=>!x.startsWith('-')).map(norm), not:a.filter(x=>x.startsWith('-')).map(x=>norm(x.slice(1))).filter(Boolean)}));
 }
 function groupName(name){
   return norm(name).replace(/(ยี่ห้อ|รุ่น|model|brand|s\/?n).*$/,'').replace(/\d+(\.\d+)?\s*(ลีด|lead|ช่อง|ไกร์|channel)?/g,' ').replace(/\s+/g,' ').trim();
 }
 function run(){
   if(!state.aoa) return;
-  const M=state.map, g=(row,k)=>M[k]>=0?row[M[k]]:'';
+  const M=state.map, g=(row,k)=>{ const v=M[k]>=0?row[M[k]]:''; return typeof v==='string'?blank(v):v; };
+  const exS=new Set($('#exStatus').value.split(',').map(norm).filter(Boolean)); let excluded=0;
   const ref=$('#refDate').value?new Date($('#refDate').value+'T00:00:00'):new Date();
   const thP=+$('#thPrice').value||0, thPA=+$('#thPriceAge').value||0, thO=+$('#thOld').value||0, thOP=+$('#thOldPrice').value||0, thE=+$('#thEssAge').value||0;
   const ess=essentials();
@@ -373,16 +379,19 @@ function run(){
   state.aoa.slice(state.headerRow+1).forEach((row,ri)=>{
     const name=String(g(row,'name')||'').trim(), code=String(g(row,'code')||'').trim();
     if(!name&&!code) return;
+    const status=String(g(row,'status')||'').trim();
+    if(status&&exS.has(norm(status))){ excluded++; return; }
     const type=String(g(row,'type')||'').trim();
     const hay=norm(name+' '+type);
-    const e=ess.find(x=>x.syn.some(s=>s&&hay.includes(s)));
+    const e=ess.find(x=>x.syn.some(s=>s&&hay.includes(s))&&!x.not.some(s=>hay.includes(s)));
     const date=parseDate(g(row,'date'));
-    const age=date?(ref-date)/(365.2425*864e5):null;
+    const badDate=!!(date&&date>ref);
+    const age=date&&!badDate?(ref-date)/(365.2425*864e5):null;
     const price=parsePrice(g(row,'price'));
     const brand=String(g(row,'brand')||'').trim(), model=String(g(row,'model')||'').trim();
-    const gk=e?e.name:(type?type:(groupName(name)||name));
+    const gk=type?type:(groupName(name)||name);
     items.push({row:ri+state.headerRow+2, code, name, type, brand, model, serial:String(g(row,'serial')||'').trim(),
-      dept:String(g(row,'dept')||'').trim()||'(ไม่ระบุหน่วยงาน)', source:String(g(row,'source')||'').trim(),
+      dept:String(g(row,'dept')||'').trim()||'(ไม่ระบุหน่วยงาน)', source:[g(row,'source'),g(row,'method')].map(x=>String(x||'').trim()).filter((x,i,a)=>x&&a.indexOf(x)===i).join(' · '), status, badDate,
       rawDate:g(row,'date'), date, age:age!=null&&age<0?0:age, price, ess:e?e.name:null, gk, bm:gk+'|'+norm(brand)+'|'+norm(model)});
   });
   // reference prices
@@ -406,26 +415,26 @@ function run(){
       if(a>=thO&&it.used!=null&&it.used>=thOP) it.reasons.push('old');
       if(it.ess&&a>thE) it.reasons.push('ess');
       if(it.used==null&&a>thPA&&!it.reasons.length) it.reasons.push('noprice');
-    } else if((it.used!=null&&it.used>=thP)||it.ess){ it.reasons.push('noage'); }
+    } else if((it.used!=null&&it.used>=thP)||it.ess){ it.reasons.push(it.badDate?'baddate':'noage'); }
   });
-  state.items=items;
+  state.items=items; state.excluded=excluded;
   state.flagged=items.filter(i=>i.reasons.length).sort((x,y)=>x.dept.localeCompare(y.dept,'th')||(y.age||0)-(x.age||0));
   state.groups=Object.keys(zeroG).map(k=>{const p=byG[k]||[];return {k,zero:zeroG[k],n:p.length,min:p.length?Math.min(...p):null,med:median(p),max:p.length?Math.max(...p):null};}).sort((a,b)=>b.zero-a.zero);
   state.crit={thP,thPA,thO,thOP,thE,ref};
   render();
 }
 
-const RL={price:['A','c-price','ราคา ≥ เกณฑ์'], est:['A*','c-est','ราคาประเมิน ≥ เกณฑ์'], old:['B','c-old','อายุ ≥ เกณฑ์'], ess:['C','c-ess','เครื่องมือจำเป็น'], noprice:['!','c-warn','ราคา 0 ไม่มีราคาเทียบ'], noage:['!','c-warn','ไม่ทราบวันที่ได้มา']};
+const RL={price:['A','c-price','ราคา ≥ เกณฑ์'], est:['A*','c-est','ราคาประเมิน ≥ เกณฑ์'], old:['B','c-old','อายุ ≥ เกณฑ์'], ess:['C','c-ess','เครื่องมือจำเป็น'], noprice:['!','c-warn','ราคา 0 ไม่มีราคาเทียบ'], noage:['!','c-warn','ไม่ทราบวันที่ได้มา'], baddate:['!','c-warn','วันที่ได้มาผิดปกติ']};
 function reasonText(r){ const c=state.crit;
-  return {price:`ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, est:`ราคาประเมิน ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, old:`ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี`, ess:`เครื่องมือจำเป็น อายุ > ${c.thE} ปี`, noprice:'ราคา 0 บาท ไม่มีราคาเทียบ ควรตรวจสอบราคา', noage:'ไม่ทราบวันที่ได้มา ควรตรวจสอบ'}[r]; }
-const isWarn=r=>r==='noprice'||r==='noage';
+  return {price:`ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, est:`ราคาประเมิน ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, old:`ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี`, ess:`เครื่องมือจำเป็น อายุ > ${c.thE} ปี`, noprice:'ราคา 0 บาท ไม่มีราคาเทียบ ควรตรวจสอบราคา', noage:'ไม่ทราบวันที่ได้มา ควรตรวจสอบ', baddate:'วันที่ได้มาเป็นวันในอนาคต ควรตรวจสอบ'}[r]; }
+const isWarn=r=>r==='noprice'||r==='noage'||r==='baddate';
 
 function render(){
   const F=state.flagged, all=state.items;
   const cnt=k=>F.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length;
   const depts=[...new Set(F.map(i=>i.dept))].sort((a,b)=>a.localeCompare(b,'th'));
   $('#kpis').innerHTML=[
-    ['v',all.length,'ครุภัณฑ์ในไฟล์'],['hl',F.length,'เข้าเกณฑ์ประเมิน'],['',depts.length,'หน่วยงานที่ต้องส่ง'],
+    ['v',all.length,'ครุภัณฑ์ที่นำมาคัดกรอง'+(state.excluded?` (ไม่รวมสถานะจำหน่าย ${state.excluded})`:'')],['hl',F.length,'เข้าเกณฑ์ประเมิน'],['',depts.length,'หน่วยงานที่ต้องส่ง'],
     ['',cnt('price'),'A ราคาจริง ≥ เกณฑ์'],['',cnt('est'),'A* ราคาประเมิน ≥ เกณฑ์'],['',cnt('old'),'B อายุ ≥ '+state.crit.thO+' ปี'],['',cnt('ess'),'C เครื่องมือจำเป็น'],['',cnt('warn'),'ข้อมูลไม่ครบ ต้องตรวจสอบ']
   ].map(([c,v,l])=>`<div class="kpi ${c}"><span class="v">${v.toLocaleString('th-TH')}</span><span class="l">${l}</span></div>`).join('');
   $('#refNote').textContent=`อายุคำนวณ ณ ${beDate(state.crit.ref)}`;
@@ -552,7 +561,8 @@ $('#btnSample').addEventListener('click',()=>{ state.wb=null; $('#sheetSel').inn
 $('#sheetSel').addEventListener('change',e=>{ if(state.wb) loadSheet(e.target.value); });
 $('#headerRow').addEventListener('change',e=>{ if(!state.aoa) return; state.headerRow=Math.max(0,(+e.target.value||1)-1); buildHeaders(); autoMap(); renderMap(); run(); });
 $('#mapGrid').addEventListener('change',e=>{ const s=e.target.closest('select[data-k]'); if(!s) return; state.map[s.dataset.k]=+s.value; run(); });
-['#thPrice','#thPriceAge','#thOld','#thOldPrice','#thEssAge','#refDate'].forEach(s=>$(s).addEventListener('input',()=>{save();run();}));
+['#thPrice','#thPriceAge','#thOld','#thOldPrice','#thEssAge','#refDate','#exStatus'].forEach(s=>$(s).addEventListener('input',()=>{save();run();}));
+$('#essReset').addEventListener('click',()=>{ $('#essList').value=DEFAULT_ESS; save(); run(); toast('คืนค่ารายการเครื่องมือจำเป็นแล้ว'); });
 let essT; $('#essList').addEventListener('input',()=>{clearTimeout(essT);essT=setTimeout(()=>{save();run();},350);});
 ['#fDept','#fReason'].forEach(s=>$(s).addEventListener('change',renderTable));
 $('#fText').addEventListener('input',renderTable);
@@ -561,7 +571,7 @@ $('#refTable').addEventListener('change',e=>{ const inp=e.target.closest('input[
 /* ---------- init ---------- */
 const saved=load();
 $('#essList').value=saved.ess||DEFAULT_ESS;
-['thPrice','thPriceAge','thOld','thOldPrice','thEssAge'].forEach(k=>{ if(saved[k]) $('#'+k).value=saved[k]; });
+['thPrice','thPriceAge','thOld','thOldPrice','thEssAge','exStatus'].forEach(k=>{ if(saved[k]) $('#'+k).value=saved[k]; });
 const t=new Date(); $('#refDate').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
 if(typeof XLSX==='undefined'){ $('#loadErr').textContent='โหลดไลบรารีอ่าน Excel ไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วโหลดหน้าใหม่'; $('#loadErr').hidden=false; return; }
 $('#sheetSel').innerHTML='<option>ตัวอย่าง</option>';
