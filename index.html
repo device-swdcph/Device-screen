@@ -153,17 +153,12 @@ td.num{white-space:nowrap}
       <div class="rules">
         <div class="rule"><span class="code c-price">A</span><div class="txt">ราคา ≥ <input type="number" id="thPrice" value="100000" step="1000"> บาท และอายุมากกว่า <input type="number" id="thPriceAge" value="5" step="0.5"> ปี</div></div>
         <div class="rule"><span class="code c-old">B</span><div class="txt">ราคา ≥ <input type="number" id="thOldPrice" value="100000" step="1000"> บาท และอายุตั้งแต่ <input type="number" id="thOld" value="10" step="0.5"> ปีขึ้นไป</div></div>
-        <div class="rule"><span class="code c-ess">C</span><div class="txt">เครื่องมือจำเป็นตามรายการด้านขวา อายุมากกว่า <input type="number" id="thEssAge" value="5" step="0.5"> ปี (ทุกราคา)</div></div>
         <div class="rule"><span class="code c-est">A*</span><div class="txt">ราคา 0 บาท ใช้ราคากลางของเครื่องชนิดเดียวกันที่มีราคาในไฟล์แทน แล้วเทียบกับเกณฑ์ A</div></div>
         <label class="f">ไม่นำรายการที่มีสถานะต่อไปนี้มาคัดกรอง (คั่นด้วยจุลภาค ต้องตรงทั้งคำ)<input type="text" id="exStatus" value="จำหน่าย, รอจำหน่าย"></label>
         <label class="f">คำนวณอายุ ณ วันที่<input type="date" id="refDate"></label>
         <p class="note">ราคาประเมินใช้ค่ามัธยฐานของเครื่องยี่ห้อและรุ่นเดียวกันก่อน ถ้าไม่มีจึงใช้เครื่องชนิดเดียวกันทั้งหมด ค่ามัธยฐานไม่ถูกดึงสูงหรือต่ำเกินจริงจากเครื่องราคาผิดปกติ ปรับราคาเองได้ในตารางราคาอ้างอิงด้านล่าง</p>
       </div>
       <div class="rules">
-      <label class="f">รายการเครื่องมือจำเป็น · หนึ่งชนิดต่อบรรทัด คั่นชื่อเรียกอื่นด้วยจุลภาค · ใส่ - หน้าคำที่ต้องการยกเว้น เช่น -มือบีบ
-        <textarea id="essList" spellcheck="false"></textarea>
-        <span><button type="button" id="essReset">คืนค่ารายการเริ่มต้น</button></span>
-      </label>
       <label class="f">ไม่นำมาคัดกรอง · ชื่อครุภัณฑ์ที่ขึ้นต้นด้วยคำเหล่านี้ คั่นด้วยจุลภาค · ใส่ - หน้าคำที่ต้องการเก็บไว้ · ใส่ @ราคา เพื่อเก็บเครื่องที่ราคาตั้งแต่เท่านั้นไว้ เช่น @50000
         <textarea id="skipList" spellcheck="false" style="min-height:120px"></textarea>
         <span><button type="button" id="skipReset">คืนค่ารายการเริ่มต้น</button></span>
@@ -185,7 +180,6 @@ td.num{white-space:nowrap}
           <option value="price">A ราคา ≥ เกณฑ์ (ราคาจริง)</option>
           <option value="est">A* ราคาประเมิน ≥ เกณฑ์</option>
           <option value="old">B อายุ ≥ เกณฑ์</option>
-          <option value="ess">C เครื่องมือจำเป็น</option>
           <option value="warn">ข้อมูลไม่ครบ ต้องตรวจสอบ</option>
         </select></label>
         <label class="f">ค้นหา<input type="text" id="fText" placeholder="ชื่อ เลขครุภัณฑ์ ยี่ห้อ"></label>
@@ -203,7 +197,7 @@ td.num{white-space:nowrap}
 
     <h3>สรุปตามหน่วยงาน</h3>
     <div class="tablebox"><table id="deptTable"><thead><tr>
-      <th>หน่วยงาน</th><th class="r">ครุภัณฑ์ทั้งหมด</th><th class="r">เข้าเกณฑ์</th><th class="r">A</th><th class="r">A*</th><th class="r">B</th><th class="r">C</th><th class="r">ต้องตรวจสอบ</th><th></th>
+      <th>หน่วยงาน</th><th class="r">ครุภัณฑ์ทั้งหมด</th><th class="r">เข้าเกณฑ์</th><th class="r">A</th><th class="r">A*</th><th class="r">B</th><th class="r">ต้องตรวจสอบ</th><th></th>
     </tr></thead><tbody></tbody></table></div>
 
     <h3>ราคาอ้างอิงสำหรับเครื่องราคา 0 บาท</h3>
@@ -233,18 +227,6 @@ const FIELDS = [
   {k:'type',  l:'ชนิด / รหัสมาตรฐาน (ใช้จัดกลุ่มเทียบราคา)', a:['รหัสมาตรฐาน','ชนิด','ประเภท','กลุ่ม','type','category']},
   {k:'name',  l:'ชื่อครุภัณฑ์', req:true, a:['ชื่อครุภัณฑ์','ชื่อเครื่องมือ','ชื่อ','รายการ','name','description','รายละเอียด']}
 ];
-const DEFAULT_ESS = [
- 'Infusion pump, สารน้ำทางหลอดเลือดดำ, เครื่องควบคุมการให้สารละลาย, เครื่องให้สารละลาย, เครื่องควบคุมการไหลของสารละลาย',
- 'Syringe pump, เครื่องควบคุมการให้ยาแบบกระบอกฉีด, เครื่องฉีดยาอัตโนมัติ',
- 'Defibrillator, เครื่องกระตุกหัวใจ, เครื่องกระตุ้นหัวใจจากภายนอก, AED',
- 'Ventilator, เครื่องช่วยหายใจ, -มือบีบ, -Ambu, -Respirometer',
- 'Patient monitor, เครื่องติดตามสัญญาณชีพ, เครื่องติดตามการทำงานของหัวใจและสัญญาณชีพ, เครื่องวัดสัญญาณชีพ',
- 'EKG, ECG, เครื่องตรวจคลื่นไฟฟ้าหัวใจ',
- 'Infant warmer, เครื่องให้ความอบอุ่นทารก, radiant warmer',
- 'Incubator, ตู้อบเด็ก',
- 'Phototherapy, เครื่องส่องไฟรักษาทารกตัวเหลือง',
- 'High flow nasal cannula, HFNC, เครื่องให้ออกซิเจนอัตราไหลสูง, ออกซิเจนด้วยอัตราการไหลสูง, Oxygen Delivery Units, High-Flow'
-].join('\n');
 const DEFAULT_SKIP = [
  'ตู้ข้างเตียง',
  'ตู้เก็บ, -เกล็ดเลือด',
@@ -252,7 +234,7 @@ const DEFAULT_SKIP = [
  'คลิบเด็กอ่อน, คลิกเด็กอ่อน, คลิปเด็กอ่อน',
  'เก้าอี้, Stair Chair, -ทันต, @50000'
 ].join('\n');
-const STORE='mdscreen.v4';
+const STORE='mdscreen.v5';
 const state = {aoa:null, wb:null, fileLabel:'', isSample:true, headerRow:0, headers:[], map:{}, overrides:{}, items:[], flagged:[], groups:[]};
 
 /* ---------- helpers ---------- */
@@ -266,7 +248,7 @@ const median = arr => { const a=[...arr].sort((x,y)=>x-y), m=a.length>>1; return
 const beDate = d => d ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()+543}` : '';
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toast.t); toast.t=setTimeout(()=>t.hidden=true,3200); }
 function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
-function save(){ try{ localStorage.setItem(STORE, JSON.stringify({ess:$('#essList').value, thPrice:$('#thPrice').value, thPriceAge:$('#thPriceAge').value, thOld:$('#thOld').value, thOldPrice:$('#thOldPrice').value, exStatus:$('#exStatus').value, skip:$('#skipList').value, thEssAge:$('#thEssAge').value})); }catch(e){} }
+function save(){ try{ localStorage.setItem(STORE, JSON.stringify({thPrice:$('#thPrice').value, thPriceAge:$('#thPriceAge').value, thOld:$('#thOld').value, thOldPrice:$('#thOldPrice').value, exStatus:$('#exStatus').value, skip:$('#skipList').value})); }catch(e){} }
 
 const TH_MONTHS = [['มกราคม','มค'],['กุมภาพันธ์','กพ'],['มีนาคม','มีค'],['เมษายน','เมย'],['พฤษภาคม','พค'],['มิถุนายน','มิย'],['กรกฎาคม','กค'],['สิงหาคม','สค'],['กันยายน','กย'],['ตุลาคม','ตค'],['พฤศจิกายน','พย'],['ธันวาคม','ธค']];
 function fixYear(y){ if(y<100) y+=2500; if(y>2400) y-=543; return y; }
@@ -373,9 +355,6 @@ function renderMap(){
 }
 
 /* ---------- processing ---------- */
-function essentials(){
-  return $('#essList').value.split('\n').map(l=>l.split(',').map(s=>s.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({name:a[0], syn:a.filter(x=>!x.startsWith('-')).map(norm), not:a.filter(x=>x.startsWith('-')).map(x=>norm(x.slice(1))).filter(Boolean)}));
-}
 function groupName(name){
   return norm(name).replace(/(ยี่ห้อ|รุ่น|model|brand|s\/?n).*$/,'').replace(/\d+(\.\d+)?\s*(ลีด|lead|ช่อง|ไกร์|channel)?/g,' ').replace(/\s+/g,' ').trim();
 }
@@ -385,8 +364,7 @@ function run(){
   const exS=new Set($('#exStatus').value.split(',').map(norm).filter(Boolean)); let excluded=0, skipped=0;
   const skip=$('#skipList').value.split('\n').map(l=>l.split(',').map(x=>x.trim()).filter(Boolean)).filter(a=>a.length).map(a=>({keep:+(a.find(x=>x.startsWith('@'))||'').slice(1).replace(/[^\d.]/g,'')||0, pre:a.filter(x=>!/^[-@]/.test(x)).map(norm).filter(Boolean), not:a.filter(x=>x.startsWith('-')).map(x=>norm(x.slice(1))).filter(Boolean)}));
   const ref=$('#refDate').value?new Date($('#refDate').value+'T00:00:00'):new Date();
-  const thP=+$('#thPrice').value||0, thPA=+$('#thPriceAge').value||0, thO=+$('#thOld').value||0, thOP=+$('#thOldPrice').value||0, thE=+$('#thEssAge').value||0;
-  const ess=essentials();
+  const thP=+$('#thPrice').value||0, thPA=+$('#thPriceAge').value||0, thO=+$('#thOld').value||0, thOP=+$('#thOldPrice').value||0;
   const items=[];
   state.aoa.slice(state.headerRow+1).forEach((row,ri)=>{
     const name=String(g(row,'name')||'').trim(), code=String(g(row,'code')||'').trim();
@@ -396,7 +374,6 @@ function run(){
     const nn=norm(name); const pr0=parsePrice(g(row,'price'))||0; if(skip.some(x=>x.pre.some(p=>nn.startsWith(p))&&!x.not.some(p=>nn.includes(p))&&!(x.keep&&pr0>=x.keep))){ skipped++; return; }
     const type=String(g(row,'type')||'').trim();
     const hay=norm(name+' '+type);
-    const e=ess.find(x=>x.syn.some(s=>s&&hay.includes(s))&&!x.not.some(s=>hay.includes(s)));
     const date=parseDate(g(row,'date'));
     const badDate=!!(date&&date>ref);
     const age=date&&!badDate?(ref-date)/(365.2425*864e5):null;
@@ -405,7 +382,7 @@ function run(){
     const gk=type?type:(groupName(name)||name);
     items.push({row:ri+state.headerRow+2, code, name, type, brand, model, serial:String(g(row,'serial')||'').trim(),
       dept:String(g(row,'dept')||'').trim()||'(ไม่ระบุหน่วยงาน)', source:[g(row,'source'),g(row,'method')].map(x=>String(x||'').trim()).filter((x,i,a)=>x&&a.indexOf(x)===i).join(' · '), status, badDate,
-      rawDate:g(row,'date'), date, age:age!=null&&age<0?0:age, price, ess:e?e.name:null, gk, bm:gk+'|'+norm(brand)+'|'+norm(model)});
+      rawDate:g(row,'date'), date, age:age!=null&&age<0?0:age, price, gk, bm:gk+'|'+norm(brand)+'|'+norm(model)});
   });
   // reference prices
   const byG={}, byBM={};
@@ -426,20 +403,19 @@ function run(){
     if(a!=null){
       if(it.used!=null&&it.used>=thP&&a>thPA) it.reasons.push(it.est?'est':'price');
       if(a>=thO&&it.used!=null&&it.used>=thOP) it.reasons.push('old');
-      if(it.ess&&a>thE) it.reasons.push('ess');
       if(it.used==null&&a>thPA&&!it.reasons.length) it.reasons.push('noprice');
-    } else if((it.used!=null&&it.used>=thP)||it.ess){ it.reasons.push(it.badDate?'baddate':'noage'); }
+    } else if(it.used!=null&&it.used>=thP){ it.reasons.push(it.badDate?'baddate':'noage'); }
   });
   state.items=items; state.excluded=excluded; state.skipped=skipped;
   state.flagged=items.filter(i=>i.reasons.length).sort((x,y)=>x.dept.localeCompare(y.dept,'th')||(y.age||0)-(x.age||0));
   state.groups=Object.keys(zeroG).map(k=>{const p=byG[k]||[];return {k,zero:zeroG[k],n:p.length,min:p.length?Math.min(...p):null,med:median(p),max:p.length?Math.max(...p):null};}).sort((a,b)=>b.zero-a.zero);
-  state.crit={thP,thPA,thO,thOP,thE,ref};
+  state.crit={thP,thPA,thO,thOP,ref};
   render();
 }
 
-const RL={price:['A','c-price','ราคา ≥ เกณฑ์'], est:['A*','c-est','ราคาประเมิน ≥ เกณฑ์'], old:['B','c-old','อายุ ≥ เกณฑ์'], ess:['C','c-ess','เครื่องมือจำเป็น'], noprice:['!','c-warn','ราคา 0 ไม่มีราคาเทียบ'], noage:['!','c-warn','ไม่ทราบวันที่ได้มา'], baddate:['!','c-warn','วันที่ได้มาผิดปกติ']};
+const RL={price:['A','c-price','ราคา ≥ เกณฑ์'], est:['A*','c-est','ราคาประเมิน ≥ เกณฑ์'], old:['B','c-old','อายุ ≥ เกณฑ์'], noprice:['!','c-warn','ราคา 0 ไม่มีราคาเทียบ'], noage:['!','c-warn','ไม่ทราบวันที่ได้มา'], baddate:['!','c-warn','วันที่ได้มาผิดปกติ']};
 function reasonText(r){ const c=state.crit;
-  return {price:`ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, est:`ราคาประเมิน ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, old:`ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี`, ess:`เครื่องมือจำเป็น อายุ > ${c.thE} ปี`, noprice:'ราคา 0 บาท ไม่มีราคาเทียบ ควรตรวจสอบราคา', noage:'ไม่ทราบวันที่ได้มา ควรตรวจสอบ', baddate:'วันที่ได้มาเป็นวันในอนาคต ควรตรวจสอบ'}[r]; }
+  return {price:`ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, est:`ราคาประเมิน ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี`, old:`ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี`, noprice:'ราคา 0 บาท ไม่มีราคาเทียบ ควรตรวจสอบราคา', noage:'ไม่ทราบวันที่ได้มา ควรตรวจสอบ', baddate:'วันที่ได้มาเป็นวันในอนาคต ควรตรวจสอบ'}[r]; }
 const isWarn=r=>r==='noprice'||r==='noage'||r==='baddate';
 
 function render(){
@@ -448,7 +424,7 @@ function render(){
   const depts=[...new Set(F.map(i=>i.dept))].sort((a,b)=>a.localeCompare(b,'th'));
   $('#kpis').innerHTML=[
     ['v',all.length,'ครุภัณฑ์ที่นำมาคัดกรอง'+[state.excluded?`ไม่รวมสถานะจำหน่าย ${state.excluded}`:'',state.skipped?`ไม่รวมตามรายการยกเว้น ${state.skipped}`:''].filter(Boolean).map(x=>` · ${x}`).join('')],['hl',F.length,'เข้าเกณฑ์ประเมิน'],['',depts.length,'หน่วยงานที่ต้องส่ง'],
-    ['',cnt('price'),'A ราคาจริง ≥ เกณฑ์'],['',cnt('est'),'A* ราคาประเมิน ≥ เกณฑ์'],['',cnt('old'),'B อายุ ≥ '+state.crit.thO+' ปี'],['',cnt('ess'),'C เครื่องมือจำเป็น'],['',cnt('warn'),'ข้อมูลไม่ครบ ต้องตรวจสอบ']
+    ['',cnt('price'),'A ราคาจริง ≥ เกณฑ์'],['',cnt('est'),'A* ราคาประเมิน ≥ เกณฑ์'],['',cnt('old'),'B อายุ ≥ '+state.crit.thO+' ปี'],['',cnt('warn'),'ข้อมูลไม่ครบ ต้องตรวจสอบ']
   ].map(([c,v,l])=>`<div class="kpi ${c}"><span class="v">${v.toLocaleString('th-TH')}</span><span class="l">${l}</span></div>`).join('');
   $('#refNote').textContent=`อายุคำนวณ ณ ${beDate(state.crit.ref)}`;
   const cur=$('#fDept').value;
@@ -458,7 +434,7 @@ function render(){
   // dept summary
   const total={}; all.forEach(i=>total[i.dept]=(total[i.dept]||0)+1);
   $('#deptTable tbody').innerHTML=depts.map(d=>{ const L=F.filter(i=>i.dept===d); const c=k=>L.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length;
-    return `<tr><td>${esc(d)}</td><td class="r num">${total[d]}</td><td class="r num"><b>${L.length}</b></td><td class="r num">${c('price')||''}</td><td class="r num">${c('est')||''}</td><td class="r num">${c('old')||''}</td><td class="r num">${c('ess')||''}</td><td class="r num">${c('warn')||''}</td><td><button type="button" data-dept="${esc(d)}">ส่งออก</button></td></tr>`; }).join('')||'<tr><td colspan="9" class="muted">ไม่มีรายการเข้าเกณฑ์</td></tr>';
+    return `<tr><td>${esc(d)}</td><td class="r num">${total[d]}</td><td class="r num"><b>${L.length}</b></td><td class="r num">${c('price')||''}</td><td class="r num">${c('est')||''}</td><td class="r num">${c('old')||''}</td><td class="r num">${c('warn')||''}</td><td><button type="button" data-dept="${esc(d)}">ส่งออก</button></td></tr>`; }).join('')||'<tr><td colspan="9" class="muted">ไม่มีรายการเข้าเกณฑ์</td></tr>';
   // ref price
   $('#refTable tbody').innerHTML=state.groups.map((g,i)=>`<tr><td>${esc(g.k)}</td><td class="r num">${g.zero}</td><td class="r num">${g.n}</td><td class="r num">${fmt(g.min)}</td><td class="r num"><b>${g.med==null?'<span class="badge">ไม่มีข้อมูล</span>':fmt(g.med)}</b></td><td class="r num">${fmt(g.max)}</td><td><input class="override" type="number" id="ov-${i}" data-gk="${esc(g.k)}" min="0" step="1000" value="${state.overrides[g.k]||''}" placeholder="—"></td></tr>`).join('')||'<tr><td colspan="7" class="muted">ไม่มีเครื่องราคา 0 บาท</td></tr>';
 }
@@ -485,7 +461,7 @@ function rowOut(i,n){ return [n,i.code,i.name,i.brand,i.model,i.serial,i.date?be
 function deptSheet(dept,list){
   const c=state.crit;
   const aoa=[[`แบบประเมินเครื่องมือแพทย์เพื่อพิจารณาการเสื่อมสภาพ · หน่วยงาน ${dept}`],
-    [`เกณฑ์: (A) ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี  (A*) ราคา 0 บาท ใช้ราคาเครื่องชนิดเดียวกันแทน  (B) ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี  (C) เครื่องมือจำเป็น อายุ > ${c.thE} ปี · คำนวณอายุ ณ ${beDate(c.ref)} · ${list.length} รายการ`],
+    [`เกณฑ์: (A) ราคา ≥ ${fmt(c.thP)} บาท และอายุ > ${c.thPA} ปี  (A*) ราคา 0 บาท ใช้ราคาเครื่องชนิดเดียวกันแทน  (B) ราคา ≥ ${fmt(c.thOP)} บาท และอายุ ≥ ${c.thO} ปี · คำนวณอายุ ณ ${beDate(c.ref)} · ${list.length} รายการ`],
     ['กรุณากรอกคอลัมน์สภาพปัจจุบัน ความเห็นหน่วยงาน และผู้ให้ความเห็น แล้วส่งคืนงานพัสดุ/ศูนย์เครื่องมือแพทย์'],[],OUT_H];
   list.forEach((i,n)=>aoa.push(rowOut(i,n+1)));
   aoa.push([],['','','ลงชื่อ ............................................ หัวหน้าหน่วยงาน'],['','','วันที่ ............../............../..............']);
@@ -501,8 +477,8 @@ const safeFile=s=>s.replace(/[\\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim();
 const stamp=()=>{const d=new Date();return `${d.getFullYear()+543}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;};
 function byDept(){ const m=new Map(); state.flagged.forEach(i=>{ if(!m.has(i.dept)) m.set(i.dept,[]); m.get(i.dept).push(i); }); return m; }
 function summarySheet(m){
-  const aoa=[['สรุปเครื่องมือแพทย์ที่เข้าเกณฑ์ประเมินการเสื่อมสภาพ'],[`ไฟล์ต้นทาง: ${state.fileLabel} · คำนวณอายุ ณ ${beDate(state.crit.ref)}`],[],['หน่วยงาน','เข้าเกณฑ์','A ราคาจริง','A* ราคาประเมิน','B อายุ','C เครื่องมือจำเป็น','ต้องตรวจสอบข้อมูล']];
-  m.forEach((L,d)=>{const c=k=>L.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length; aoa.push([d,L.length,c('price'),c('est'),c('old'),c('ess'),c('warn')]);});
+  const aoa=[['สรุปเครื่องมือแพทย์ที่เข้าเกณฑ์ประเมินการเสื่อมสภาพ'],[`ไฟล์ต้นทาง: ${state.fileLabel} · คำนวณอายุ ณ ${beDate(state.crit.ref)}`],[],['หน่วยงาน','เข้าเกณฑ์','A ราคาจริง','A* ราคาประเมิน','B อายุ','ต้องตรวจสอบข้อมูล']];
+  m.forEach((L,d)=>{const c=k=>L.filter(i=>k==='warn'?i.reasons.some(isWarn):i.reasons.includes(k)).length; aoa.push([d,L.length,c('price'),c('est'),c('old'),c('warn')]);});
   aoa.push(['รวม',state.flagged.length]);
   const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:30},{wch:10},{wch:12},{wch:14},{wch:10},{wch:16},{wch:16}]; return ws;
 }
@@ -574,20 +550,18 @@ $('#btnSample').addEventListener('click',()=>{ state.wb=null; $('#sheetSel').inn
 $('#sheetSel').addEventListener('change',e=>{ if(state.wb) loadSheet(e.target.value); });
 $('#headerRow').addEventListener('change',e=>{ if(!state.aoa) return; state.headerRow=Math.max(0,(+e.target.value||1)-1); buildHeaders(); autoMap(); renderMap(); run(); });
 $('#mapGrid').addEventListener('change',e=>{ const s=e.target.closest('select[data-k]'); if(!s) return; state.map[s.dataset.k]=+s.value; run(); });
-['#thPrice','#thPriceAge','#thOld','#thOldPrice','#thEssAge','#refDate','#exStatus'].forEach(s=>$(s).addEventListener('input',()=>{save();run();}));
-$('#essReset').addEventListener('click',()=>{ $('#essList').value=DEFAULT_ESS; save(); run(); toast('คืนค่ารายการเครื่องมือจำเป็นแล้ว'); });
+['#thPrice','#thPriceAge','#thOld','#thOldPrice','#refDate','#exStatus'].forEach(s=>$(s).addEventListener('input',()=>{save();run();}));
 $('#skipReset').addEventListener('click',()=>{ $('#skipList').value=DEFAULT_SKIP; save(); run(); toast('คืนค่ารายการยกเว้นแล้ว'); });
-$('#skipList').addEventListener('input',()=>{clearTimeout(essT);essT=setTimeout(()=>{save();run();},350);});
-let essT; $('#essList').addEventListener('input',()=>{clearTimeout(essT);essT=setTimeout(()=>{save();run();},350);});
+let essT; $('#skipList').addEventListener('input',()=>{clearTimeout(essT);essT=setTimeout(()=>{save();run();},350);});
+
 ['#fDept','#fReason'].forEach(s=>$(s).addEventListener('change',renderTable));
 $('#fText').addEventListener('input',renderTable);
 $('#refTable').addEventListener('change',e=>{ const inp=e.target.closest('input[data-gk]'); if(!inp) return; const v=+inp.value; if(v>0) state.overrides[inp.dataset.gk]=v; else delete state.overrides[inp.dataset.gk]; run(); });
 
 /* ---------- init ---------- */
 const saved=load();
-$('#essList').value=saved.ess||DEFAULT_ESS;
 $('#skipList').value=saved.skip!=null?saved.skip:DEFAULT_SKIP;
-['thPrice','thPriceAge','thOld','thOldPrice','thEssAge','exStatus'].forEach(k=>{ if(saved[k]) $('#'+k).value=saved[k]; });
+['thPrice','thPriceAge','thOld','thOldPrice','exStatus'].forEach(k=>{ if(saved[k]) $('#'+k).value=saved[k]; });
 const t=new Date(); $('#refDate').value=`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
 if(typeof XLSX==='undefined'){ $('#loadErr').textContent='โหลดไลบรารีอ่าน Excel ไม่สำเร็จ ตรวจการเชื่อมต่ออินเทอร์เน็ตแล้วโหลดหน้าใหม่'; $('#loadErr').hidden=false; return; }
 $('#sheetSel').innerHTML='<option>ตัวอย่าง</option>';
